@@ -9,6 +9,9 @@ Repository: https://code.siemens.com/jan.vollmar/flight_calculator
 import streamlit as st
 import sys
 from pathlib import Path
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 
 # Add src to path for imports
 sys.path.append(str(Path(__file__).parent / "src"))
@@ -154,6 +157,159 @@ def show_home():
     
     st.markdown("---")
     st.info("💡 **Tipp:** Alle Rechner verwenden Aviation-Standard-Einheiten (Fuß, Knoten, Grad)")
+
+
+def plot_wind_triangle(tas, true_course, wind_from, wind_speed, wca, true_heading, ground_speed):
+    """
+    Create a visual representation of the wind triangle.
+    
+    Args:
+        tas: True airspeed in knots
+        true_course: Desired true course in degrees
+        wind_from: Wind FROM direction in degrees
+        wind_speed: Wind speed in knots
+        wca: Wind correction angle in degrees
+        true_heading: Calculated true heading in degrees
+        ground_speed: Calculated ground speed in knots
+    
+    Returns:
+        matplotlib figure
+    """
+    # Create figure
+    fig, ax = plt.subplots(figsize=(10, 8))
+    ax.set_aspect('equal')
+    
+    # Convert angles to radians and adjust for plotting (0° = North = up)
+    tc_rad = np.radians(90 - true_course)  # Convert to math convention
+    th_rad = np.radians(90 - true_heading)
+    wd_rad = np.radians(90 - wind_from)
+    
+    # Scale factor for visualization
+    scale = 100 / max(tas, wind_speed, ground_speed)
+    
+    # Starting point
+    origin = np.array([0, 0])
+    
+    # Vector 1: True Airspeed (Heading vector - where aircraft points)
+    tas_end = origin + np.array([tas * scale * np.cos(th_rad), 
+                                   tas * scale * np.sin(th_rad)])
+    
+    # Vector 2: Wind vector (FROM direction, so reverse it)
+    wind_end = origin + np.array([-wind_speed * scale * np.cos(wd_rad), 
+                                    -wind_speed * scale * np.sin(wd_rad)])
+    
+    # Vector 3: Ground Speed (Track vector - actual path over ground)
+    gs_end = origin + np.array([ground_speed * scale * np.cos(tc_rad), 
+                                 ground_speed * scale * np.sin(tc_rad)])
+    
+    # Calculate dynamic arrow head sizes based on vector lengths
+    arrow_scale = max(tas, wind_speed, ground_speed) * scale / 100
+    head_width = max(2, 3 * arrow_scale)
+    head_length = max(3, 4 * arrow_scale)
+    
+    # Draw vectors
+    # TAS vector (blue) - where aircraft points
+    ax.arrow(origin[0], origin[1], tas_end[0], tas_end[1], 
+             head_width=head_width, head_length=head_length, fc='blue', ec='blue', linewidth=2.5,
+             label=f'TAS: {tas} kts @ {true_heading:.0f}°')
+    
+    # Wind vector (red) - wind effect
+    ax.arrow(origin[0], origin[1], wind_end[0], wind_end[1], 
+             head_width=head_width, head_length=head_length, fc='red', ec='red', linewidth=2.5,
+             label=f'Wind: {wind_speed} kts FROM {wind_from:.0f}°', linestyle='--')
+    
+    # Ground Speed vector (green) - actual track
+    ax.arrow(origin[0], origin[1], gs_end[0], gs_end[1], 
+             head_width=head_width, head_length=head_length, fc='green', ec='green', linewidth=2.5,
+             label=f'GS: {ground_speed:.1f} kts @ {true_course:.0f}°')
+    
+    # Draw the triangle (dashed lines connecting the vectors)
+    triangle = plt.Polygon([origin, tas_end, gs_end], fill=False, 
+                           edgecolor='gray', linestyle=':', linewidth=1)
+    ax.add_patch(triangle)
+    
+    # Calculate dynamic axis limits based on vector positions
+    # Collect all vector endpoints
+    all_points = np.array([origin, tas_end, wind_end, gs_end])
+    x_points = all_points[:, 0]
+    y_points = all_points[:, 1]
+    
+    # Calculate the actual spread of the vectors
+    x_range = np.max(x_points) - np.min(x_points)
+    y_range = np.max(y_points) - np.min(y_points)
+    max_range = max(x_range, y_range)
+    
+    # Dynamic margin based on WCA size and vector spread
+    # Smaller WCA = larger margin factor for better zoom
+    if abs(wca) < 5:
+        margin_factor = 1.8  # Close zoom for very small angles
+    elif abs(wca) < 15:
+        margin_factor = 1.5  # Medium zoom
+    else:
+        margin_factor = 1.3  # Normal zoom
+    
+    # Calculate center point of all vectors
+    center_x = (np.max(x_points) + np.min(x_points)) / 2
+    center_y = (np.max(y_points) + np.min(y_points)) / 2
+    
+    # Set limits with dynamic margin
+    half_range = max_range * margin_factor / 2
+    
+    # Add WCA arc
+    if abs(wca) > 0.5:
+        # Dynamic arc radius based on zoom level
+        arc_radius = min(15, max_range * 0.15)
+        angle1 = 90 - true_course
+        angle2 = 90 - true_heading
+        
+        # Ensure angle1 < angle2 for proper arc direction
+        if angle1 > angle2:
+            angle1, angle2 = angle2, angle1
+        
+        arc = mpatches.Arc(origin, 2*arc_radius, 2*arc_radius, 
+                          angle=0, theta1=angle1, theta2=angle2, 
+                          color='orange', linewidth=2)
+        ax.add_patch(arc)
+        
+        # Add WCA label
+        mid_angle = np.radians((angle1 + angle2) / 2)
+        label_pos = origin + np.array([arc_radius * 1.5 * np.cos(mid_angle),
+                                       arc_radius * 1.5 * np.sin(mid_angle)])
+        ax.text(label_pos[0], label_pos[1], f'WCA\n{abs(wca):.1f}°', 
+               fontsize=10, ha='center', va='center', 
+               bbox=dict(boxstyle='round', facecolor='orange', alpha=0.3))
+    
+    # Add compass directions at dynamic positions
+    compass_radius = half_range * 0.85  # Position compass inside the view
+    directions = [('N', 0, 90), ('E', 90, 0), ('S', 180, -90), ('W', 270, 180)]
+    for label, deg, plot_angle in directions:
+        angle_rad = np.radians(plot_angle)
+        pos = origin + np.array([compass_radius * np.cos(angle_rad),
+                                 compass_radius * np.sin(angle_rad)])
+        ax.text(pos[0], pos[1], label, fontsize=12, fontweight='bold',
+               ha='center', va='center',
+               bbox=dict(boxstyle='circle', facecolor='white', alpha=0.8, edgecolor='gray'))
+    
+    # Set limits centered on vectors with dynamic zoom
+    ax.set_xlim(center_x - half_range, center_x + half_range)
+    ax.set_ylim(center_y - half_range, center_y + half_range)
+    ax.set_xlabel('East/West (skaliert in Knoten)', fontsize=12)
+    ax.set_ylabel('North/South (skaliert in Knoten)', fontsize=12)
+    ax.set_title('Wind Triangle Visualization', fontsize=16, fontweight='bold')
+    ax.grid(True, alpha=0.3)
+    ax.legend(loc='upper right', fontsize=10, framealpha=0.9)
+    
+    # Add info text
+    info_text = (
+        f"Wind Correction Angle: {wca:+.1f}° ({'right' if wca > 0 else 'left'})\n"
+        f"Fly Heading {true_heading:.0f}° to track {true_course:.0f}°"
+    )
+    ax.text(0.5, -0.05, info_text, transform=ax.transAxes, 
+           fontsize=11, ha='center', va='top',
+           bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
+    
+    plt.tight_layout()
+    return fig
 
 
 def show_tod_calculator():
@@ -395,6 +551,22 @@ def show_wind_correction_calculator():
                 - {hw_type}: {abs(result['headwind_component']):.1f} kts
                 - Seitenwind: {abs(result['crosswind_component']):.1f} kts {cw_direction}
                 """)
+            
+            # Wind Triangle Visualization
+            st.markdown("---")
+            st.subheader("🎨 Wind-Dreieck Visualisierung")
+            
+            fig = plot_wind_triangle(
+                tas, 
+                true_course, 
+                wind_from, 
+                wind_speed,
+                result['wind_correction_angle'],
+                result['true_heading'],
+                result['ground_speed']
+            )
+            st.pyplot(fig)
+            plt.close(fig)  # Close figure to free memory
 
 
 def show_course_converter():
