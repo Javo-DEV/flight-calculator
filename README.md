@@ -1,93 +1,176 @@
-# Flight_Calculator
+# ✈️ MSFS 2020 Flight Calculator
 
+Ein Python-basierter Flight Calculator für Microsoft Flight Simulator 2020 mit moderner Web-Oberfläche.
 
+## 📋 Übersicht
 
-## Getting started
+Diese Anwendung bietet verschiedene Berechnungstools für präzise Flugplanung und Navigation im Microsoft Flight Simulator 2020. Die App läuft lokal auf Ihrem Computer und öffnet sich automatisch im Browser.
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+### ✨ Features
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+- **📉 Top of Descent (TOD) Calculator** - Berechnet den idealen Punkt zum Einleiten des Sinkflugs
+- **🌬️ Wind Correction Angle** - Ermittelt Windkorrektur und Ground Speed
+- **🧭 Course Converter** - Konvertiert zwischen True und Magnetic Course (TVMDC)
+- **📊 Ground Speed Calculator** - Schnelle Geschwindigkeitsberechnung bei bekanntem Heading
 
-## Add your files
+### 🎯 Technologie
 
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+- **Python 3.12+**
+- **Streamlit** - Web-Framework für die UI
+- **NumPy** - Mathematische Berechnungen
+- **Git** - Versionskontrolle
+
+## 🚀 Installation
+
+### Voraussetzungen
+
+- Python 3.10 oder höher ([Download](https://www.python.org/downloads/))
+- Git ([Download](https://git-scm.com/downloads))
+
+### Setup
+
+1. **Repository klonen:**
+   ```bash
+   git clone https://code.siemens.com/jan.vollmar/flight_calculator.git
+   cd flight_calculator
+   ```
+
+2. **Virtual Environment erstellen:**
+   ```bash
+   python -m venv .venv
+   ```
+
+3. **Virtual Environment aktivieren:**
+   - **Windows:**
+     ```powershell
+     .venv\Scripts\Activate.ps1
+     ```
+   - **macOS/Linux:**
+     ```bash
+     source .venv/bin/activate
+     ```
+
+4. **Dependencies installieren:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+## 💻 Verwendung
+
+1. **App starten:**
+   ```bash
+   streamlit run app.py
+   ```
+
+2. Die App öffnet sich automatisch in Ihrem Browser unter `http://localhost:8501`
+
+3. Wählen Sie einen Rechner aus der Sidebar und geben Sie Ihre Werte ein
+
+### 🧮 Verfügbare Rechner
+
+#### Top of Descent (TOD)
+Berechnet, wann Sie den Sinkflug einleiten müssen:
+- Eingabe: Aktuelle Höhe, Zielhöhe, Sinkwinkel (Standard: 3°), Ground Speed
+- Ausgabe: Distanz bis TOD, Sinkrate, Sinkzeit
+- **Faustregel:** Höhenverlust (ft) ÷ 300 = Distanz (NM)
+
+#### Wind Correction Angle
+Berechnet Kurskorrektur bei Wind:
+- Eingabe: True Airspeed, Desired Course, Wind FROM, Wind Speed
+- Ausgabe: Wind Correction Angle, True Heading, Ground Speed, Drift Angle
+- Inkl. Anzeige von Gegen-/Rückenwind und Seitenwind-Komponenten
+
+#### Course Converter
+Konvertiert zwischen True und Magnetic Course:
+- Eingabe: Kurs-Wert, Magnetic Variation (East/West)
+- Ausgabe: Konvertierter Kurs nach TVMDC-Regel
+- **Merkhilfe:** "East is Least, West is Best"
+
+#### Ground Speed Calculator
+Schnelle Ground Speed Berechnung:
+- Eingabe: True Airspeed, True Heading, Wind FROM, Wind Speed
+- Ausgabe: Ground Speed, Actual Track, Wind-Komponenten
+- Optional: Flugzeitberechnung bei bekannter Distanz
+
+## 📐 Einheiten
+
+Alle Berechnungen verwenden Aviation-Standard-Einheiten:
+- **Höhe:** Fuß (ft)
+- **Geschwindigkeit:** Knoten (kts)
+- **Distanz:** Nautische Meilen (NM)
+- **Winkel:** Grad (°)
+- **Vertikale Geschwindigkeit:** ft/min
+
+## 📁 Projektstruktur
 
 ```
-cd existing_repo
-git remote add origin https://code.siemens.com/jan.vollmar/flight_calculator.git
-git branch -M main
-git push -uf origin main
+flight_calculator/
+├── app.py                 # Haupt-Streamlit-Anwendung
+├── src/
+│   ├── __init__.py
+│   ├── calculations.py    # Core-Berechnungslogik
+│   └── constants.py       # Aviation-Konstanten
+├── tests/
+│   ├── __init__.py
+│   └── test_calculations.py  # Unit Tests
+├── assets/                # Bilder/Ressourcen
+├── requirements.txt       # Python-Dependencies
+├── .gitignore
+└── README.md
 ```
 
-## Integrate with your tools
+## 🧪 Testing
 
-* [Set up project integrations](https://code.siemens.com/jan.vollmar/flight_calculator/-/settings/integrations)
+Unit Tests ausführen:
+```bash
+pytest
+```
 
-## Collaborate with your team
+Mit Coverage-Report:
+```bash
+pytest --cov=src tests/
+```
 
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+## 🛠️ Entwicklung
 
-## Test and Deploy
+### Code-Formatierung
+```bash
+black .
+```
 
-Use the built-in continuous integration in GitLab.
+### Linting
+```bash
+flake8 src/ tests/
+```
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
+## 🗺️ Roadmap
 
-***
+Geplante Features für zukünftige Versionen:
+- 🔧 Treibstoffberechnung
+- ⚖️ Weight & Balance Calculator
+- 📏 Unit Converter (ft↔m, kts↔km/h)
+- 🎮 SimConnect-Integration (Live-Daten aus MSFS)
+- 🖥️ Desktop-App-Version (.exe mit PyWebView)
 
-# Editing this README
+## 🤝 Contributing
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+Contributions sind willkommen! Bitte erstellen Sie einen Merge Request auf code.siemens.com.
 
-## Suggestions for a good README
+## 👤 Author
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+**Jan Vollmar**
+- Repository: [code.siemens.com/jan.vollmar/flight_calculator](https://code.siemens.com/jan.vollmar/flight_calculator)
 
-## Name
-Choose a self-explaining name for your project.
+## 📝 Lizenz
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+Dieses Projekt ist für den internen Gebrauch bei Siemens.
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+## 🙏 Acknowledgments
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+- Luftfahrt-Formeln basierend auf ICAO Standard Atmosphere (ISA)
+- TVMDC-Regel für Kursumrechnung
+- Wind-Dreieck-Berechnungen nach standardisierten Navigations-Methoden
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+---
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+**Viel Spaß beim Fliegen! ✈️**
