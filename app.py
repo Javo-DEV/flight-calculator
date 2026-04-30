@@ -363,12 +363,16 @@ def plot_wind_triangle(tas, true_course, wind_from, wind_speed, wca, true_headin
                           color='orange', linewidth=2)
         ax.add_patch(arc)
         
-        # Add WCA label
+        # Add WCA label - positioned left or right based on correction direction
         mid_angle = np.radians((angle1 + angle2) / 2)
-        label_pos = origin + np.array([arc_radius * 1.5 * np.cos(mid_angle),
-                                       arc_radius * 1.5 * np.sin(mid_angle)])
+        label_pos = origin + np.array([arc_radius * 1.2 * np.cos(mid_angle),
+                                       arc_radius * 1.2 * np.sin(mid_angle)])
+        # Shift label 20 knots to the right or left based on WCA direction
+        label_pos[0] += 20 if wca < 0 else +20
+        # Align text based on WCA direction: right correction = left aligned (text appears right)
+        text_align = 'left' if wca > 0 else 'right'
         ax.text(label_pos[0], label_pos[1], f'WCA\n{abs(wca):.1f}°', 
-               fontsize=10, ha='center', va='center', 
+               fontsize=10, ha=text_align, va='center', 
                bbox=dict(boxstyle='round', facecolor='orange', alpha=0.3))
     
     # Add compass directions at dynamic positions
@@ -396,7 +400,7 @@ def plot_wind_triangle(tas, true_course, wind_from, wind_speed, wca, true_headin
         f"Wind Correction Angle: {wca:+.1f}° ({'right' if wca > 0 else 'left'})\n"
         f"Fly Heading {true_heading:.0f}° to track {true_course:.0f}°"
     )
-    ax.text(0.5, -0.05, info_text, transform=ax.transAxes, 
+    ax.text(0.5, -0.15, info_text, transform=ax.transAxes, 
            fontsize=11, ha='center', va='top',
            bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
     
