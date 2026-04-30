@@ -6,54 +6,81 @@ Author: Jan Vollmar
 Repository: https://code.siemens.com/jan.vollmar/flight_calculator
 """
 
+# ============================================================================
+# IMPORTS
+# ============================================================================
+
+# Streamlit - Web framework for creating the UI
 import streamlit as st
+
+# System imports for path management
 import sys
 from pathlib import Path
+
+# NumPy - For mathematical operations (vectors, trigonometry)
 import numpy as np
+
+# Matplotlib - For plotting the wind triangle visualization
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
-# Add src to path for imports
+# Add src folder to Python path so we can import our custom modules
 sys.path.append(str(Path(__file__).parent / "src"))
 
+# Import aviation calculation functions from our calculations module
 from src.calculations import (
-    calculate_descent_rate,
-    calculate_wind_correction,
-    convert_course,
-    calculate_ground_speed,
-    calculate_rule_of_thumb_tod,
-    calculate_time_and_fuel
+    calculate_descent_rate,      # Calculate Top of Descent (TOD) and sink rate
+    calculate_wind_correction,    # Calculate Wind Correction Angle (WCA)
+    convert_course,               # Convert between True and Magnetic course
+    calculate_ground_speed,       # Calculate ground speed from TAS and wind
+    calculate_rule_of_thumb_tod,  # Quick TOD rule (altitude/300)
+    calculate_time_and_fuel       # Calculate flight time and fuel consumption
 )
+
+# Import aviation constants and default values
 from src.constants import (
-    STANDARD_DESCENT_ANGLE,
-    DEFAULT_TAS,
-    DEFAULT_CRUISE_ALTITUDE
+    STANDARD_DESCENT_ANGLE,    # Default 3° descent angle (ILS glideslope)
+    DEFAULT_TAS,               # Default True Airspeed (120 kts)
+    DEFAULT_CRUISE_ALTITUDE    # Default cruise altitude (5000 ft)
 )
 
 
-# Page Configuration
+# ============================================================================
+# STREAMLIT PAGE CONFIGURATION
+# ============================================================================
+
+# Configure the Streamlit page settings (must be first Streamlit command)
 st.set_page_config(
-    page_title="MSFS 2020 Flight Calculator",
-    page_icon="✈️",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    page_title="MSFS 2020 Flight Calculator",  # Browser tab title
+    page_icon="✈️",                             # Browser tab icon
+    layout="wide",                              # Use full width of browser
+    initial_sidebar_state="expanded"           # Show sidebar by default
 )
 
-# Custom CSS for better styling
+# ============================================================================
+# CUSTOM CSS STYLING
+# ============================================================================
+
+# Inject custom CSS to improve the visual appearance of the app
 st.markdown("""
     <style>
+    /* Main header styling - large blue centered title */
     .main-header {
         font-size: 2.5rem;
         color: #1E88E5;
         text-align: center;
         margin-bottom: 2rem;
     }
+    
+    /* Calculator section containers - light gray background boxes */
     .calculator-section {
         background-color: #f0f2f6;
         padding: 1.5rem;
         border-radius: 0.5rem;
         margin-bottom: 1rem;
     }
+    
+    /* Result display boxes - light blue with accent border */
     .result-box {
         background-color: #e3f2fd;
         padding: 1rem;
@@ -65,29 +92,47 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
+# ============================================================================
+# MAIN APPLICATION FUNCTION
+# ============================================================================
+
 def main():
-    """Main application entry point"""
+    """
+    Main application entry point.
     
-    # Header
+    This function:
+    1. Displays the main header
+    2. Creates the sidebar navigation menu
+    3. Routes to the selected calculator based on user choice
+    """
+    
+    # Display the main application header using custom CSS class
     st.markdown('<h1 class="main-header">✈️ MSFS 2020 Flight Calculator</h1>', 
                 unsafe_allow_html=True)
     
-    # Sidebar Navigation
-    st.sidebar.title("🧭 Navigation")
-    st.sidebar.markdown("---")
+    # ========================================================================
+    # SIDEBAR NAVIGATION
+    # ========================================================================
     
+    st.sidebar.title("🧭 Navigation")
+    st.sidebar.markdown("---")  # Horizontal divider line
+    
+    # Create radio button menu for selecting calculators
+    # The selected value is stored in 'calculator' variable
     calculator = st.sidebar.radio(
         "Wählen Sie einen Rechner:",
         [
-            "🏠 Home",
-            "📉 Top of Descent (TOD)",
-            "🌬️ Wind Correction Angle",
-            "🧭 Course Converter",
-            "📊 Ground Speed"
+            "🏠 Home",                      # Landing page with information
+            "📉 Top of Descent (TOD)",      # TOD/descent rate calculator
+            "🌬️ Wind Correction Angle",   # WCA and ground speed calculator
+            "🧭 Course Converter",         # True/Magnetic course conversion
+            "📊 Ground Speed"              # Ground speed calculator
         ]
     )
     
-    st.sidebar.markdown("---")
+    st.sidebar.markdown("---")  # Another divider line
+    
+    # Display informational box in sidebar with app description and units
     st.sidebar.info(
         "**MSFS 2020 Flight Calculator**\n\n"
         "Ein Tool für präzise Flugberechnungen im Microsoft Flight Simulator.\n\n"
@@ -98,7 +143,11 @@ def main():
         "- Angles: Grad (°)"
     )
     
-    # Route to selected calculator
+    # ========================================================================
+    # ROUTE TO SELECTED CALCULATOR
+    # ========================================================================
+    
+    # Based on user selection, call the appropriate calculator function
     if calculator == "🏠 Home":
         show_home()
     elif calculator == "📉 Top of Descent (TOD)":
@@ -111,8 +160,17 @@ def main():
         show_ground_speed_calculator()
 
 
+# ============================================================================
+# HOME PAGE DISPLAY
+# ============================================================================
+
 def show_home():
-    """Display home page with information"""
+    """
+    Display the home/landing page with information about available calculators.
+    
+    This page provides an overview of all calculator features and guides users
+    to select a calculator from the sidebar.
+    """
     st.header("Willkommen beim MSFS 2020 Flight Calculator!")
     
     st.write("""
@@ -120,6 +178,7 @@ def show_home():
     Wählen Sie einen Rechner aus der Sidebar, um zu beginnen.
     """)
     
+    # Create two columns for side-by-side calculator descriptions
     col1, col2 = st.columns(2)
     
     with col1:
@@ -159,46 +218,79 @@ def show_home():
     st.info("💡 **Tipp:** Alle Rechner verwenden Aviation-Standard-Einheiten (Fuß, Knoten, Grad)")
 
 
+# ============================================================================
+# WIND TRIANGLE VISUALIZATION
+# ============================================================================
+
 def plot_wind_triangle(tas, true_course, wind_from, wind_speed, wca, true_heading, ground_speed):
     """
-    Create a visual representation of the wind triangle.
+    Create a visual representation of the wind triangle using matplotlib.
+    
+    The wind triangle shows the relationship between:
+    - True Airspeed (TAS) vector - where the aircraft points
+    - Wind vector - wind effect on the aircraft
+    - Ground Speed (GS) vector - actual path over ground
+    
+    Features dynamic zoom based on Wind Correction Angle (WCA) size:
+    - Small WCA (< 5°): Close zoom for detailed view
+    - Medium WCA (5-15°): Medium zoom
+    - Large WCA (> 15°): Normal zoom
     
     Args:
         tas: True airspeed in knots
-        true_course: Desired true course in degrees
-        wind_from: Wind FROM direction in degrees
+        true_course: Desired true course in degrees (where you want to go)
+        wind_from: Wind FROM direction in degrees (e.g., 270° = wind from West)
         wind_speed: Wind speed in knots
-        wca: Wind correction angle in degrees
-        true_heading: Calculated true heading in degrees
-        ground_speed: Calculated ground speed in knots
+        wca: Wind correction angle in degrees (calculated)
+        true_heading: Calculated true heading in degrees (where to point aircraft)
+        ground_speed: Calculated ground speed in knots (actual speed over ground)
     
     Returns:
-        matplotlib figure
+        matplotlib.figure.Figure: The generated plot figure
     """
-    # Create figure
+    # ========================================================================
+    # SETUP PLOT
+    # ========================================================================
+    
+    # Create a 10x8 inch figure with equal aspect ratio (so circles look circular)
     fig, ax = plt.subplots(figsize=(10, 8))
-    ax.set_aspect('equal')
+    ax.set_aspect('equal')  # Equal scaling for x and y axes
     
-    # Convert angles to radians and adjust for plotting (0° = North = up)
-    tc_rad = np.radians(90 - true_course)  # Convert to math convention
-    th_rad = np.radians(90 - true_heading)
-    wd_rad = np.radians(90 - wind_from)
+    # ========================================================================
+    # CONVERT ANGLES AND CALCULATE VECTORS
+    # ========================================================================
     
-    # Scale factor for visualization
+    # Convert angles from aviation convention (0°=North) to math convention (0°=East)
+    # Aviation: 0°=N, 90°=E, 180°=S, 270°=W
+    # Math: 0°=E, 90°=N, 180°=W, 270°=S
+    tc_rad = np.radians(90 - true_course)   # Desired track (where we want to go)
+    th_rad = np.radians(90 - true_heading)  # Aircraft heading (where aircraft points)
+    wd_rad = np.radians(90 - wind_from)     # Wind FROM direction
+    
+    # Scale factor to make all vectors fit nicely in the plot
+    # Normalizes the largest speed to 100 units
     scale = 100 / max(tas, wind_speed, ground_speed)
     
-    # Starting point
+    # Origin point (0, 0) - where all vectors start
     origin = np.array([0, 0])
     
-    # Vector 1: True Airspeed (Heading vector - where aircraft points)
+    # ========================================================================
+    # CALCULATE VECTOR END POINTS
+    # ========================================================================
+    
+    # Vector 1: True Airspeed (TAS) - where the aircraft points
+    # This shows the heading the pilot must fly to counter the wind
     tas_end = origin + np.array([tas * scale * np.cos(th_rad), 
                                    tas * scale * np.sin(th_rad)])
     
-    # Vector 2: Wind vector (FROM direction, so reverse it)
+    # Vector 2: Wind vector - shows wind effect
+    # Note: Wind FROM 270° means wind is blowing TO 090° (East)
+    # We negate the direction because wind blows FROM the given direction
     wind_end = origin + np.array([-wind_speed * scale * np.cos(wd_rad), 
                                     -wind_speed * scale * np.sin(wd_rad)])
     
-    # Vector 3: Ground Speed (Track vector - actual path over ground)
+    # Vector 3: Ground Speed (GS) - actual path over ground
+    # This is the resultant vector showing where the aircraft actually goes
     gs_end = origin + np.array([ground_speed * scale * np.cos(tc_rad), 
                                  ground_speed * scale * np.sin(tc_rad)])
     
