@@ -385,8 +385,8 @@ def plot_wind_triangle(tas, true_course, wind_from, wind_speed, wca, true_headin
     # Set limits centered on vectors with dynamic zoom
     ax.set_xlim(center_x - half_range, center_x + half_range)
     ax.set_ylim(center_y - half_range, center_y + half_range)
-    ax.set_xlabel('East/West (skaliert in Knoten)', fontsize=12)
-    ax.set_ylabel('North/South (skaliert in Knoten)', fontsize=12)
+    ax.set_xlabel('East/West (in kn)', fontsize=12)
+    ax.set_ylabel('North/South (in kn)', fontsize=12)
     ax.set_title('Wind Triangle Visualization', fontsize=16, fontweight='bold')
     ax.grid(True, alpha=0.3)
     ax.legend(loc='upper right', fontsize=10, framealpha=0.9)
