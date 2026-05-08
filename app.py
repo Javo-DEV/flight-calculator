@@ -408,96 +408,153 @@ def plot_wind_triangle(tas, true_course, wind_from, wind_speed, wca, true_headin
     return fig
 
 
+# ============================================================================
+# TOP OF DESCENT (TOD) CALCULATOR UI
+# ============================================================================
+
 def show_tod_calculator():
-    """Top of Descent Calculator"""
+    """
+    Display the Top of Descent (TOD) calculator interface.
+    
+    This calculator helps pilots determine when to start descending to reach
+    a target altitude. It calculates:
+    - Distance to TOD (Top of Descent point)
+    - Required descent rate
+    - Time needed for descent
+    - Rule of thumb estimation
+    
+    The calculation uses the descent angle (typically 3° for ILS approaches)
+    and applies basic trigonometry to determine the descent profile.
+    """
     st.header("📉 Top of Descent (TOD) Calculator")
     st.write("Berechnen Sie, wann Sie mit dem Sinkflug beginnen müssen.")
     
+    # Create two-column layout: left for inputs, right for results
     col1, col2 = st.columns([1, 1])
+    
+    # ========================================================================
+    # LEFT COLUMN - USER INPUTS
+    # ========================================================================
     
     with col1:
         st.subheader("Eingabe")
         
+        # Input field: Current altitude
+        # This is the altitude you are currently flying at
         current_alt = st.number_input(
             "Aktuelle Höhe (ft)",
             min_value=0,
             max_value=50000,
-            value=DEFAULT_CRUISE_ALTITUDE,
+            value=DEFAULT_CRUISE_ALTITUDE,  # Default: 5000 ft
             step=100,
             help="Ihre aktuelle Flughöhe in Fuß"
         )
         
+        # Input field: Target altitude
+        # This is the altitude you want to reach (e.g., pattern altitude, final approach)
         target_alt = st.number_input(
             "Zielhöhe (ft)",
             min_value=0,
             max_value=50000,
-            value=2000,
+            value=2000,  # Default: 2000 ft (typical pattern altitude)
             step=100,
             help="Die Höhe, die Sie erreichen möchten"
         )
         
+        # Input slider: Descent angle
+        # Standard ILS glideslope is 3°. Steeper angles (4-6°) for emergency descents
         descent_angle = st.slider(
             "Sinkwinkel (°)",
             min_value=1.0,
             max_value=6.0,
-            value=STANDARD_DESCENT_ANGLE,
+            value=STANDARD_DESCENT_ANGLE,  # 3° = ILS standard
             step=0.5,
             help="Standard: 3° (ILS Glideslope)"
         )
         
+        # Input field: Ground speed (optional)
+        # If provided, calculates descent rate (ft/min) and time to descend
         ground_speed = st.number_input(
             "Ground Speed (kts) [optional]",
             min_value=0,
             max_value=500,
-            value=120,
+            value=120,  # Default: 120 kts (typical GA aircraft)
             step=10,
             help="Für Sinkraten- und Zeitberechnung"
         )
         
+        # Calculate button - triggers the calculation
         calculate_btn = st.button("🧮 Berechnen", type="primary", use_container_width=True)
+    
+    # ========================================================================
+    # RIGHT COLUMN - CALCULATION RESULTS
+    # ========================================================================
     
     with col2:
         st.subheader("Ergebnis")
         
+        # Trigger calculation when button is clicked OR when user changes altitude
+        # (auto-calculation for better UX)
         if calculate_btn or current_alt != DEFAULT_CRUISE_ALTITUDE:
+            # Call calculation function from src/calculations.py
+            # Returns dict with: altitude_loss, distance_to_tod, descent_rate, descent_time
             result = calculate_descent_rate(
                 current_alt, 
                 target_alt, 
                 descent_angle, 
-                ground_speed if ground_speed > 0 else None
+                ground_speed if ground_speed > 0 else None  # Pass None if GS = 0
             )
             
+            # Validation: Check if target altitude is valid
             if result["altitude_loss"] <= 0:
                 st.warning("⚠️ Zielhöhe liegt über oder auf aktueller Höhe!")
             else:
-                # Main results
+                # ============================================================
+                # DISPLAY MAIN RESULTS
+                # ============================================================
+                
+                # Create two sub-columns for result metrics
                 col_a, col_b = st.columns(2)
                 
+                # Left sub-column: Altitude and distance metrics
                 with col_a:
+                    # Metric: Total altitude to lose
                     st.metric(
                         "Höhenverlust",
-                        f"{result['altitude_loss']:,.0f} ft"
+                        f"{result['altitude_loss']:,.0f} ft"  # Format with thousands separator
                     )
                     
+                    # Metric: Distance to TOD point
+                    # This is where you should start descending
                     st.metric(
                         "Distanz bis TOD",
-                        f"{result['distance_to_tod']:.1f} NM"
+                        f"{result['distance_to_tod']:.1f} NM"  # Nautical miles
                     )
                 
+                # Right sub-column: Time and rate metrics (only if ground speed provided)
                 with col_b:
                     if result['descent_rate']:
+                        # Metric: Required descent rate in feet per minute
+                        # This is what you set on the autopilot or aim for manually
                         st.metric(
                             "Sinkrate",
                             f"{result['descent_rate']:.0f} ft/min"
                         )
                         
+                        # Metric: Total time for the descent
                         st.metric(
                             "Sinkzeit",
                             f"{result['descent_time']:.1f} min"
                         )
                 
-                # Rule of thumb
-                st.markdown("---")
+                # ============================================================
+                # RULE OF THUMB SECTION
+                # ============================================================
+                
+                st.markdown("---")  # Visual separator  # Visual separator
+                
+                # Quick rule of thumb: altitude to lose ÷ 300 = distance in NM
+                # This is a simple mental math trick for 3° descents
                 rule_distance = calculate_rule_of_thumb_tod(result["altitude_loss"])
                 st.info(
                     f"**📐 Faustregel (3° Descent):**\n\n"
@@ -506,14 +563,20 @@ def show_tod_calculator():
                     f"*Berechnung: {result['altitude_loss']:.0f} ft ÷ 300 = {rule_distance:.0f} NM*"
                 )
                 
-                # Explanation
+                # ============================================================
+                # EXPANDABLE EXPLANATION SECTION
+                # ============================================================
+                
+                # Collapsible section with detailed calculation steps
                 with st.expander("ℹ️ Erklärung"):
+                    # Show step-by-step calculation
                     st.write(f"""
                     **Berechnung:**
                     - Höhenverlust: {current_alt:,.0f} ft - {target_alt:,.0f} ft = {result['altitude_loss']:,.0f} ft
                     - Distanz: Höhenverlust / tan({descent_angle}°) = {result['distance_to_tod']:.2f} NM
                     """)
                     
+                    # If ground speed was provided, show time/rate calculations
                     if result['descent_rate']:
                         st.write(f"""
                         - Zeit: {result['distance_to_tod']:.2f} NM / {ground_speed} kts = {result['descent_time']:.2f} min
@@ -521,58 +584,104 @@ def show_tod_calculator():
                         """)
 
 
+# ============================================================================
+# WIND CORRECTION ANGLE CALCULATOR UI
+# ============================================================================
+
 def show_wind_correction_calculator():
-    """Wind Correction Angle Calculator"""
+    """
+    Display the Wind Correction Angle (WCA) calculator interface.
+    
+    This calculator solves the wind triangle problem to determine:
+    - Wind Correction Angle (WCA): How much to adjust heading for wind
+    - True Heading: The actual heading to fly to maintain desired track
+    - Ground Speed: Actual speed over ground considering wind
+    - Wind Components: Headwind/tailwind and crosswind breakdown
+    - Drift Angle: Angle between heading and actual track
+    
+    The calculation uses vector mathematics to solve the wind triangle:
+    - TAS vector: Aircraft's speed through the air
+    - Wind vector: Wind speed and direction
+    - GS vector: Resultant ground speed and track
+    
+    Also displays a visual wind triangle diagram to help understanding.
+    """
     st.header("🌬️ Wind Correction Angle Calculator")
     st.write("Berechnen Sie Wind Correction Angle (WCA) und Ground Speed.")
     
+    # Create two-column layout: left for inputs, right for results
     col1, col2 = st.columns([1, 1])
+    
+    # ========================================================================
+    # LEFT COLUMN - USER INPUTS
+    # ========================================================================
     
     with col1:
         st.subheader("Eingabe")
         
+        # Input field: True Airspeed (TAS)
+        # This is the speed of the aircraft through the air mass
+        # (not ground speed - that's what we calculate!)
         tas = st.number_input(
             "True Airspeed (TAS) [kts]",
             min_value=50,
             max_value=500,
-            value=DEFAULT_TAS,
+            value=DEFAULT_TAS,  # Default: 120 kts
             step=10,
             help="Ihre True Airspeed in Knoten"
         )
         
+        # Input field: Desired True Course
+        # This is the track you want to follow over the ground
+        # NOT the heading you fly - that's calculated based on wind
         true_course = st.number_input(
             "Desired True Course (°)",
             min_value=0,
             max_value=359,
-            value=180,
+            value=180,  # Default: South (180°)
             step=1,
             help="Der Kurs, den Sie fliegen möchten (0-359°)"
         )
         
+        # Input field: Wind FROM direction
+        # IMPORTANT: Wind is always reported as the direction it comes FROM
+        # E.g., 270° = wind FROM the West (blowing TO the East)
         wind_from = st.number_input(
             "Wind FROM (°)",
             min_value=0,
             max_value=359,
-            value=270,
+            value=270,  # Default: From West
             step=10,
             help="Richtung, AUS DER der Wind kommt (z.B. 270° = Wind von Westen)"
         )
         
+        # Input field: Wind speed
+        # Speed of the wind in knots
         wind_speed = st.number_input(
             "Wind Speed (kts)",
             min_value=0,
             max_value=200,
-            value=20,
+            value=20,  # Default: 20 kts wind
             step=5,
             help="Windgeschwindigkeit in Knoten"
         )
         
+        # Calculate button - triggers the calculation
         calculate_btn = st.button("🧮 Berechnen", type="primary", use_container_width=True)
+    
+    # ========================================================================
+    # RIGHT COLUMN - CALCULATION RESULTS
+    # ========================================================================
     
     with col2:
         st.subheader("Ergebnis")
         
+        # Trigger calculation when button is clicked OR when TAS changes
+        # (auto-calculation for better UX)
         if calculate_btn or tas != DEFAULT_TAS:
+            # Call wind correction calculation from src/calculations.py
+            # This solves the wind triangle using vector mathematics
+            # Returns dict with: wca, true_heading, ground_speed, drift_angle, wind components
             result = calculate_wind_correction(
                 tas,
                 true_course,
@@ -580,58 +689,99 @@ def show_wind_correction_calculator():
                 wind_speed
             )
             
-            # Main results
+            # ============================================================
+            # DISPLAY MAIN RESULTS (Primary Navigation Values)
+            # ============================================================
+            
+            # Create two sub-columns for primary metrics
             col_a, col_b = st.columns(2)
             
+            # Left sub-column: Wind Correction Angle and Heading
             with col_a:
+                # Determine WCA direction (right = positive, left = negative)
                 wca_direction = "rechts" if result['wind_correction_angle'] > 0 else "links"
+                
+                # Metric: Wind Correction Angle (WCA)
+                # This is the angle to add to your desired course to get heading
+                # Positive = correct to the right, Negative = correct to the left
                 st.metric(
                     "Wind Correction Angle",
                     f"{abs(result['wind_correction_angle']):.1f}° {wca_direction}",
                     help="Winkel, um den Sie korrigieren müssen"
                 )
                 
+                # Metric: True Heading to Fly
+                # This is the actual heading you must fly to maintain your desired track
+                # Heading = Course + WCA
                 st.metric(
                     "True Heading to Fly",
                     f"{result['true_heading']:.0f}°",
                     help="Der Heading, den Sie fliegen müssen"
                 )
             
+            # Right sub-column: Ground Speed and Drift
             with col_b:
+                # Metric: Ground Speed
+                # This is your actual speed over the ground (faster or slower than TAS)
+                # Headwind reduces GS, tailwind increases GS
                 st.metric(
                     "Ground Speed",
                     f"{result['ground_speed']:.1f} kts",
                     help="Ihre Geschwindigkeit über Grund"
                 )
                 
+                # Metric: Drift Angle
+                # Angle between where aircraft points (heading) and where it goes (track)
+                # If you don't correct for wind, this is how far you'll drift off course
                 st.metric(
                     "Drift Angle",
                     f"{result['drift_angle']:.1f}°",
                     help="Abdrift durch den Wind"
                 )
             
-            # Wind components
-            st.markdown("---")
+            # ============================================================
+            # WIND COMPONENTS SECTION
+            # ============================================================
+            
+            st.markdown("---")  # Visual separator
             st.subheader("Wind-Komponenten")
             
+            # Create two sub-columns for wind component metrics
             col_c, col_d = st.columns(2)
             
+            # Left component: Headwind/Tailwind
             with col_c:
+                # Determine if headwind (positive) or tailwind (negative)
                 hw_type = "Rückenwind" if result['headwind_component'] < 0 else "Gegenwind"
+                
+                # Metric: Headwind or Tailwind component
+                # Headwind: Wind opposing your direction (slows you down)
+                # Tailwind: Wind from behind (speeds you up)
                 st.metric(
                     hw_type,
                     f"{abs(result['headwind_component']):.1f} kts"
                 )
             
+            # Right component: Crosswind
             with col_d:
+                # Determine crosswind direction (right = positive, left = negative)
                 cw_direction = "von rechts" if result['crosswind_component'] > 0 else "von links"
+                
+                # Metric: Crosswind component
+                # This is the wind perpendicular to your desired track
+                # This is what causes drift and requires WCA correction
                 st.metric(
                     f"Seitenwind ({cw_direction})",
                     f"{abs(result['crosswind_component']):.1f} kts"
                 )
             
-            # Explanation
+            # ============================================================
+            # EXPANDABLE EXPLANATION SECTION
+            # ============================================================
+            
+            # Collapsible section with detailed calculation explanation
             with st.expander("ℹ️ Erklärung"):
+                # Show comprehensive explanation of the wind triangle calculation
                 st.write(f"""
                 **Wind-Dreieck-Berechnung:**
                 
@@ -648,10 +798,20 @@ def show_wind_correction_calculator():
                 - Seitenwind: {abs(result['crosswind_component']):.1f} kts {cw_direction}
                 """)
             
-            # Wind Triangle Visualization
-            st.markdown("---")
+            # ============================================================
+            # WIND TRIANGLE VISUALIZATION
+            # ============================================================
+            
+            st.markdown("---")  # Visual separator
             st.subheader("🎨 Wind-Dreieck Visualisierung")
             
+            # Generate the wind triangle plot using matplotlib
+            # This creates a visual representation showing:
+            # - Blue arrow: TAS vector (where aircraft points)
+            # - Red arrow: Wind vector (wind effect)
+            # - Green arrow: GS vector (actual track over ground)
+            # - Orange arc: Wind Correction Angle
+            # - Compass rose: N/E/S/W directions
             fig = plot_wind_triangle(
                 tas, 
                 true_course, 
@@ -661,8 +821,13 @@ def show_wind_correction_calculator():
                 result['true_heading'],
                 result['ground_speed']
             )
+            
+            # Display the plot in Streamlit
             st.pyplot(fig)
-            plt.close(fig)  # Close figure to free memory
+            
+            # Close the figure to free memory
+            # IMPORTANT: Prevents memory leaks when recalculating multiple times
+            plt.close(fig)
 
 
 def show_course_converter():

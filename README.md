@@ -92,6 +92,85 @@ Schnelle Ground Speed Berechnung:
 - Ausgabe: Ground Speed, Actual Track, Wind-Komponenten
 - Optional: Flugzeitberechnung bei bekannter Distanz
 
+## 🎨 UI-Architektur
+
+### Allgemeine Screen-Struktur
+
+Alle Calculator-Screens folgen einem einheitlichen **2-Spalten-Layout** für eine konsistente Benutzererfahrung:
+
+```
+┌─────────────────────────────────────────────┐
+│         Header + Beschreibung               │
+├──────────────────┬──────────────────────────┤
+│   Eingabe-Spalte │  Ergebnis-Spalte        │
+│   (col1)         │  (col2)                  │
+└──────────────────┴──────────────────────────┘
+```
+
+### Container-Typen
+
+| Container-Typ | Verwendung | Beispiel |
+|---------------|------------|----------|
+| `st.columns([1, 1])` | Hauptlayout (50/50) | Eingabe/Ergebnis Trennung |
+| `st.columns(2)` | Unterspalten | Metriken nebeneinander |
+| `st.expander()` | Klappbare Sektion | Detaillierte Erklärungen |
+| `st.info()` | Info-Box | Faustregeln, Tipps |
+| `st.success()` | Erfolgs-Box | Große Ergebnisse |
+| `st.metric()` | Einzelne Metrik | Zahlenwerte mit Label |
+| `st.number_input()` | Zahleneingabe | TAS, Altitude, etc. |
+| `st.slider()` | Schieberegler | Descent Angle |
+| `st.radio()` | Auswahlbuttons | True→Magnetic |
+| `st.button()` | Aktionsbutton | "Berechnen" |
+| `st.pyplot()` | Plot-Anzeige | Wind Triangle |
+
+### Typischer Workflow
+
+**Alle Calculator folgen diesem Schema:**
+```
+INPUT (links) → BUTTON → RESULTS (rechts) → VISUALIZATION (unten)
+```
+
+**User Flow:**
+1. User füllt **Input-Felder** aus
+2. User klickt **"Berechnen"** Button (oder Auto-Berechnung bei Wertänderung)
+3. **Haupt-Metriken** werden angezeigt (in 2 Sub-Spalten)
+4. **Zusatz-Info** folgt (Wind-Komponenten, Faustregel, etc.)
+5. **Erklärung** ist klappbar verfügbar (Expander)
+6. **Visualisierung** (nur beim Wind Correction Calculator)
+
+### Beispiel: Wind Correction Angle Calculator
+
+```
+┌─────────────────────────────────────────────┐
+│  Header: "Wind Correction Angle Calculator" │
+├──────────────────┬──────────────────────────┤
+│  EINGABE (col1)  │  ERGEBNIS (col2)         │
+│  ───────────────│───────────────────────   │
+│  Input Fields:   │  ┌──────┬──────┐        │
+│  - TAS           │  │col_a │col_b │        │
+│  - True Course   │  ├──────┼──────┤        │
+│  - Wind FROM     │  │WCA   │Ground│        │
+│  - Wind Speed    │  │      │Speed │        │
+│                  │  │True  │Drift │        │
+│  🧮 Berechnen    │  │Headi.│Angle │        │
+│    (Button)      │  └──────┴──────┘        │
+│                  │  ────────────────        │
+│                  │  Wind-Komponenten:       │
+│                  │  ┌──────┬──────┐        │
+│                  │  │col_c │col_d │        │
+│                  │  ├──────┼──────┤        │
+│                  │  │Gegen-│Seite.│        │
+│                  │  │wind  │wind  │        │
+│                  │  └──────┴──────┘        │
+│                  │  ────────────────        │
+│                  │  ℹ️ Erklärung            │
+│                  │  (Expander)              │
+│                  │  ────────────────        │
+│                  │  🎨 Wind-Dreieck         │
+│                  │  (Matplotlib Plot)       │
+└──────────────────┴──────────────────────────┘
+```
+
 ## 📐 Einheiten
 
 Alle Berechnungen verwenden Aviation-Standard-Einheiten:
