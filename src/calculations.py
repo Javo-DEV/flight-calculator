@@ -13,6 +13,7 @@ and altitudes in feet, following aviation conventions.
 """
 
 import math
+from typing import Dict, List, Optional
 from typing import Tuple, Dict
 from .constants import STANDARD_DESCENT_ANGLE
 
@@ -1016,4 +1017,187 @@ def calculate_wind_components(
         "crosswind_component": crosswind,
         "crosswind_direction": crosswind_direction,
         "angle_difference": abs(angle_diff)
+    }
+
+
+# ============================================================================
+# WEIGHT & BALANCE CALCULATIONS
+# ============================================================================
+
+def calculate_weight_and_balance(
+    aircraft_name: str,
+    fuel_gallons: float,
+    station_weights: Dict[str, float]
+) -> Dict[str, any]:
+    """
+    Calculate weight and balance for an aircraft.
+    
+    Performs comprehensive weight and balance calculations including:
+    - Total weight
+    - Center of Gravity (CG) position
+    - Total moment
+    - CG envelope check
+    - Weight limits check
+    
+    Args:
+        aircraft_name: Name of aircraft from aircraft database
+        fuel_gallons: Fuel on board in US gallons
+        station_weights: Dictionary of station_name: weight_lbs
+            Example: {"front_seats": 340, "rear_seats": 280, "baggage_area_1": 50}
+    
+    Returns:
+        Dictionary containing:
+        - total_weight: Total aircraft weight (lbs)
+        - total_moment: Total moment (lb-in)
+        - cg_position: CG position in inches from datum
+        - cg_mac_percent: CG as % of Mean Aerodynamic Chord (if available)
+        - within_envelope: Boolean - is CG within limits
+        - forward_limit: Forward CG limit at this weight (inches)
+        - aft_limit: Aft CG limit at this weight (inches)
+        - weight_status: "OK", "OVER MAX TAKEOFF", "OVER MAX RAMP", "OVER MAX LANDING"
+        - cg_status: "OK", "AFT OF LIMITS", "FORWARD OF LIMITS"
+        - stations_detail: List of dicts with station-by-station breakdown
+    
+    Raises:
+        KeyError: If aircraft not found in database
+        ValueError: If invalid station names provided
+    """
+    from .aircraft_data import get_aircraft_data, interpolate_cg_limits, is_within_cg_envelope
+    
+    # Get aircraft data
+    aircraft = get_aircraft_data(aircraft_name)
+    
+    # Start with empty weight
+    total_weight = aircraft["empty_weight"]
+    total_moment = aircraft["empty_moment"]
+    
+    stations_detail = []
+    
+    # Add empty weight to detail
+    stations_detail.append({
+        "name": "Empty Weight",
+        "weight": aircraft["empty_weight"],
+        "arm": aircraft["empty_arm"],
+        "moment": aircraft["empty_moment"]
+    })
+    
+    # Add fuel
+    fuel_weight = fuel_gallons * aircraft["fuel_weight_per_gallon"]
+    fuel_moment = fuel_weight * aircraft["fuel_arm"]
+    total_weight += fuel_weight
+    total_moment += fuel_moment
+    
+    stations_detail.append({
+        "name": "Fuel",
+        "weight": fuel_weight,
+        "arm": aircraft["fuel_arm"],
+        "moment": fuel_moment
+    })
+    
+    # Add stations
+    for station_name, weight in station_weights.items():
+        if station_name not in aircraft["stations"]:
+            raise ValueError(f"Unknown station: {station_name}. Valid stations: {list(aircraft['stations'].keys())}")
+        
+        station = aircraft["stations"][station_name]
+        moment = weight * station["arm"]
+        
+        total_weight += weight
+        total_moment += moment
+        
+        stations_detail.append({
+            "name": station["name"],
+            "weight": weight,
+            "arm": station["arm"],
+            "moment": moment
+        })
+    
+    # Calculate CG position
+    cg_position = total_moment / total_weight if total_weight > 0 else 0
+    
+    # Check CG envelope
+    try:
+        fwd_limit, aft_limit = interpolate_cg_limits(aircraft_name, total_weight)
+        within_envelope = is_within_cg_envelope(aircraft_name, total_weight, cg_position)
+        
+        # Determine CG status
+        if within_envelope:
+            cg_status = "OK"
+        elif cg_position < fwd_limit:
+            cg_status = "FORWARD OF LIMITS"
+        else:
+            cg_status = "AFT OF LIMITS"
+    except ValueError:
+        # Weight outside envelope range
+        within_envelope = False
+        fwd_limit = None
+        aft_limit = None
+        cg_status = "WEIGHT OUTSIDE ENVELOPE RANGE"
+    
+    # Check weight limits
+    if total_weight > aircraft["max_ramp_weight"]:
+        weight_status = "OVER MAX RAMP"
+    elif total_weight > aircraft["max_takeoff_weight"]:
+        weight_status = "OVER MAX TAKEOFF"
+    elif total_weight > aircraft["max_landing_weight"]:
+        weight_status = "OVER MAX LANDING"
+    else:
+        weight_status = "OK"
+    
+    return {
+        "total_weight": total_weight,
+        "total_moment": total_moment,
+        "cg_position": cg_position,
+        "within_envelope": within_envelope,
+        "forward_limit": fwd_limit,
+        "aft_limit": aft_limit,
+        "weight_status": weight_status,
+        "cg_status": cg_status,
+        "stations_detail": stations_detail,
+        "max_takeoff_weight": aircraft["max_takeoff_weight"],
+        "max_ramp_weight": aircraft["max_ramp_weight"],
+        "max_landing_weight": aircraft["max_landing_weight"]
+    }
+
+
+def validate_station_weights(
+    aircraft_name: str,
+    fuel_gallons: float,
+    station_weights: Dict[str, float]
+) -> Dict[str, List[str]]:
+    """
+    Validate station weights against maximum limits.
+    
+    Args:
+        aircraft_name: Name of aircraft
+        fuel_gallons: Fuel on board
+        station_weights: Dictionary of station weights
+    
+    Returns:
+        Dictionary containing:
+        - warnings: List of warning messages
+        - errors: List of error messages (weight exceeds limits)
+    """
+    from .aircraft_data import get_aircraft_data
+    
+    aircraft = get_aircraft_data(aircraft_name)
+    warnings = []
+    errors = []
+    
+    # Check fuel capacity
+    if fuel_gallons > aircraft["fuel_capacity"]:
+        errors.append(f"Fuel {fuel_gallons} gal exceeds capacity {aircraft['fuel_capacity']} gal")
+    
+    # Check station weights
+    for station_name, weight in station_weights.items():
+        if station_name in aircraft["stations"]:
+            station = aircraft["stations"][station_name]
+            if weight > station["max_weight"]:
+                errors.append(f"{station['name']}: {weight} lbs exceeds max {station['max_weight']} lbs")
+            elif weight > station["max_weight"] * 0.9:
+                warnings.append(f"{station['name']}: {weight} lbs approaching max {station['max_weight']} lbs")
+    
+    return {
+        "warnings": warnings,
+        "errors": errors
     }

@@ -15,11 +15,17 @@ Diese Anwendung bietet verschiedene Berechnungstools für präzise Flugplanung u
 - **🧭 Course Converter** - Konvertiert zwischen True und Magnetic Course (TVMDC)
 - **📊 Ground Speed Calculator** - Schnelle Geschwindigkeitsberechnung bei bekanntem Heading
 
-#### E6B Flight Computer
+#### E6B Flight Computer (Tabbed Interface)
 - **✈️ True Airspeed (TAS) Calculator** - Berechnet TAS aus IAS, Höhe und Temperatur
 - **🌡️ Density Altitude Calculator** - Performance-kritische Berechnungen für Takeoff/Landing
 - **⛽ Fuel Planner** - Treibstoffbedarf, Reichweite und Endurance-Berechnungen
 - **🛬 Wind Components** - Gegen-/Rückenwind und Seitenwind für Runway Selection
+
+#### Weight & Balance
+- **⚖️ Weight & Balance Calculator** - Schwerpunkt-Berechnungen mit Aircraft Database
+  - Cessna 172S Skyhawk
+  - Cessna 208B Grand Caravan
+  - Erweiterbar für weitere Aircraft-Modelle
 
 #### Utilities
 - **🔄 Unit Converter** - Konvertiert zwischen Höhe, Distanz, Gewicht und Treibstoff-Einheiten
@@ -156,6 +162,19 @@ Berechnet Wind-Komponenten für Runway Operations:
 - **Warnings:** Tailwind-Warnung, High Crosswind Alert
 - **Limits:** Typische GA Crosswind Limits angezeigt
 
+#### Weight & Balance Calculator
+Berechnet Gewicht und Schwerpunkt für verschiedene Flugzeuge:
+- **Aircraft Database:** Cessna 172S Skyhawk, Cessna 208B Grand Caravan
+- **Eingabe:** Aircraft Type, Fuel Amount, Passenger/Cargo Weights
+- **Ausgabe:** Total Weight, CG Position, CG Limits, Weight Status, CG Status
+- **Features:**
+  - Automatische CG-Envelope-Prüfung
+  - Weight Limits Checking (Max Ramp, Takeoff, Landing)
+  - Station-by-Station Breakdown
+  - Input Validation (Fuel Capacity, Station Limits)
+  - Warning System (Approaching Limits)
+- **Erweiterbar:** Neue Aircraft können einfach zur Datenbank hinzugefügt werden
+
 ## 🎨 UI-Architektur
 
 ### Allgemeine Screen-Struktur
@@ -239,10 +258,11 @@ flight_calculator/
 ├── src/
 │   ├── __init__.py
 │   ├── calculations.py    # Core-Berechnungslogik
-│   └── constants.py       # Aviation-Konstanten
+│   ├── constants.py       # Aviation-Konstanten
+│   └── aircraft_data.py   # Aircraft Database für W&B
 ├── tests/
 │   ├── __init__.py
-│   └── test_calculations.py  # Unit Tests
+│   └── test_calculations.py  # Unit Tests (78 Tests)
 ├── assets/                # Bilder/Ressourcen
 ├── requirements.txt       # Python-Dependencies
 ├── .gitignore
@@ -251,7 +271,7 @@ flight_calculator/
 
 ## 🧪 Testing
 
-Das Projekt verfügt über umfassende Unit Tests (**66 Tests**):
+Das Projekt verfügt über umfassende Unit Tests (**78 Tests**):
 
 **Test Coverage:**
 - TOD/TOC Calculations (19 Tests)
@@ -262,6 +282,11 @@ Das Projekt verfügt über umfassende Unit Tests (**66 Tests**):
   - Density Altitude
   - Fuel Planning
   - Wind Components
+- Weight & Balance (12 Tests)
+  - W&B Calculations (Cessna 172, Cessna 208)
+  - CG Envelope Validation
+  - Station Weight Validation
+  - Error Handling
 
 Unit Tests ausführen:
 ```bash
@@ -293,11 +318,14 @@ flake8 src/ tests/
 ## 🗺️ Roadmap
 
 Geplante Features für zukünftige Versionen:
-- 🔧 Treibstoffberechnung
-- ⚖️ Weight & Balance Calculator
-- 📏 Unit Converter (ft↔m, kts↔km/h)
+- ✅ ~~Weight & Balance Calculator~~ (Implementiert!)
+- ✅ ~~Unit Converter~~ (Implementiert!)
+- ✅ ~~E6B Flight Computer~~ (Implementiert!)
+- 📊 CG Envelope Visualization (Matplotlib Charts)
 - 🎮 SimConnect-Integration (Live-Daten aus MSFS)
+- 🗺️ Little Navmap Integration
 - 🖥️ Desktop-App-Version (.exe mit PyWebView)
+- ✈️ Weitere Aircraft (King Air, Citation, etc.)
 
 ## 🤝 Contributing
 

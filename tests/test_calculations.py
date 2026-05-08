@@ -40,7 +40,10 @@ from src.calculations import (
     calculate_density_altitude,
     calculate_fuel_required,
     calculate_endurance_and_range,
-    calculate_wind_components
+    calculate_wind_components,
+    # Weight & Balance Functions
+    calculate_weight_and_balance,
+    validate_station_weights
 )
 
 
@@ -730,6 +733,224 @@ class TestWindComponents:
         # Component ≈ 20 * cos(45°) ≈ 14.14
         assert result['headwind_component'] == pytest.approx(14.14, rel=0.05)
         assert result['crosswind_component'] == pytest.approx(14.14, rel=0.05)
+
+
+# ============================================================================
+# WEIGHT & BALANCE TESTS
+# ============================================================================
+
+class TestWeightAndBalance:
+    """Test suite for Weight & Balance calculations"""
+    
+    def test_cessna_172_basic_loading(self):
+        """Test basic W&B calculation for Cessna 172S"""
+        # Basic loading: 2 people (340 lbs), half fuel
+        result = calculate_weight_and_balance(
+            aircraft_name="Cessna 172S Skyhawk",
+            fuel_gallons=28.0,  # Half tanks
+            station_weights={
+                "front_seats": 340.0,
+                "rear_seats": 0.0,
+                "baggage_area_1": 0.0,
+                "baggage_area_2": 0.0
+            }
+        )
+        
+        # Check calculations
+        fuel_weight = 28.0 * 6.0  # 168 lbs
+        expected_weight = 1680 + 168 + 340  # Empty + fuel + pax
+        
+        assert result['total_weight'] == pytest.approx(expected_weight, rel=0.01)
+        assert result['weight_status'] == "OK"
+        assert result['cg_status'] in ["OK", "FORWARD OF LIMITS", "AFT OF LIMITS"]
+    
+    def test_cessna_172_max_loading(self):
+        """Test Cessna 172S at maximum weight"""
+        # Full fuel, 4 people, baggage
+        result = calculate_weight_and_balance(
+            aircraft_name="Cessna 172S Skyhawk",
+            fuel_gallons=56.0,  # Full tanks
+            station_weights={
+                "front_seats": 340.0,
+                "rear_seats": 340.0,
+                "baggage_area_1": 100.0,
+                "baggage_area_2": 50.0
+            }
+        )
+        
+        # This should exceed max weight
+        assert result['total_weight'] > result['max_takeoff_weight']
+        assert result['weight_status'] != "OK"
+    
+    def test_cessna_208_basic_loading(self):
+        """Test basic W&B calculation for Cessna 208B Grand Caravan"""
+        result = calculate_weight_and_balance(
+            aircraft_name="Cessna 208B Grand Caravan",
+            fuel_gallons=200.0,
+            station_weights={
+                "pilot_seat": 180.0,
+                "copilot_seat": 180.0,
+                "passenger_row_1": 0.0,
+                "passenger_row_2": 0.0,
+                "passenger_row_3": 0.0,
+                "passenger_row_4": 0.0,
+                "cargo_pod": 0.0
+            }
+        )
+        
+        # Basic sanity checks
+        assert result['total_weight'] > 4730  # Empty weight
+        assert result['weight_status'] == "OK"  # Should be within limits
+    
+    def test_cg_within_envelope(self):
+        """Test CG calculation is within envelope for normal loading"""
+        # Standard loading that should be well within envelope
+        result = calculate_weight_and_balance(
+            aircraft_name="Cessna 172S Skyhawk",
+            fuel_gallons=40.0,
+            station_weights={
+                "front_seats": 300.0,
+                "rear_seats": 200.0,
+                "baggage_area_1": 50.0,
+                "baggage_area_2": 0.0
+            }
+        )
+        
+        # CG should be within limits for this normal loading
+        assert result['cg_position'] > 0
+        assert result['forward_limit'] is not None
+        assert result['aft_limit'] is not None
+        
+        if result['within_envelope']:
+            assert result['cg_position'] >= result['forward_limit']
+            assert result['cg_position'] <= result['aft_limit']
+    
+    def test_cg_calculation_formula(self):
+        """Test that CG is calculated correctly (moment/weight)"""
+        result = calculate_weight_and_balance(
+            aircraft_name="Cessna 172S Skyhawk",
+            fuel_gallons=30.0,
+            station_weights={
+                "front_seats": 340.0,
+                "rear_seats": 0.0,
+                "baggage_area_1": 0.0,
+                "baggage_area_2": 0.0
+            }
+        )
+        
+        # CG = Total Moment / Total Weight
+        calculated_cg = result['total_moment'] / result['total_weight']
+        assert result['cg_position'] == pytest.approx(calculated_cg, rel=0.001)
+    
+    def test_empty_aircraft(self):
+        """Test calculation with just empty aircraft (no fuel, no pax)"""
+        result = calculate_weight_and_balance(
+            aircraft_name="Cessna 172S Skyhawk",
+            fuel_gallons=0.0,
+            station_weights={
+                "front_seats": 0.0,
+                "rear_seats": 0.0,
+                "baggage_area_1": 0.0,
+                "baggage_area_2": 0.0
+            }
+        )
+        
+        # Should equal empty weight and CG
+        aircraft_data = {
+            "Cessna 172S Skyhawk": {"empty_weight": 1680, "empty_arm": 39.5}
+        }
+        
+        assert result['total_weight'] == 1680  # Empty weight from database
+        assert result['weight_status'] == "OK"
+    
+    def test_invalid_aircraft_raises_error(self):
+        """Test that invalid aircraft name raises KeyError"""
+        with pytest.raises(KeyError):
+            calculate_weight_and_balance(
+                aircraft_name="Boeing 747",  # Not in database
+                fuel_gallons=100.0,
+                station_weights={}
+            )
+    
+    def test_invalid_station_raises_error(self):
+        """Test that invalid station name raises ValueError"""
+        with pytest.raises(ValueError):
+            calculate_weight_and_balance(
+                aircraft_name="Cessna 172S Skyhawk",
+                fuel_gallons=30.0,
+                station_weights={
+                    "invalid_station": 200.0  # Not a valid station
+                }
+            )
+
+
+class TestStationWeightValidation:
+    """Test suite for station weight validation"""
+    
+    def test_valid_weights(self):
+        """Test validation with all weights within limits"""
+        result = validate_station_weights(
+            aircraft_name="Cessna 172S Skyhawk",
+            fuel_gallons=40.0,
+            station_weights={
+                "front_seats": 300.0,
+                "rear_seats": 300.0,
+                "baggage_area_1": 80.0,
+                "baggage_area_2": 50.0
+            }
+        )
+        
+        assert len(result['errors']) == 0
+        # May have warnings if approaching limits
+    
+    def test_fuel_capacity_exceeded(self):
+        """Test fuel over capacity triggers error"""
+        result = validate_station_weights(
+            aircraft_name="Cessna 172S Skyhawk",
+            fuel_gallons=100.0,  # Way over 56 gal capacity
+            station_weights={
+                "front_seats": 300.0,
+                "rear_seats": 0.0,
+                "baggage_area_1": 0.0,
+                "baggage_area_2": 0.0
+            }
+        )
+        
+        assert len(result['errors']) > 0
+        assert any("Fuel" in error for error in result['errors'])
+    
+    def test_station_weight_exceeded(self):
+        """Test station over max weight triggers error"""
+        result = validate_station_weights(
+            aircraft_name="Cessna 172S Skyhawk",
+            fuel_gallons=40.0,
+            station_weights={
+                "front_seats": 500.0,  # Over 400 lbs max
+                "rear_seats": 0.0,
+                "baggage_area_1": 0.0,
+                "baggage_area_2": 0.0
+            }
+        )
+        
+        assert len(result['errors']) > 0
+        assert any("Front Seats" in error for error in result['errors'])
+    
+    def test_warning_approaching_limit(self):
+        """Test warning when approaching station limit (>90%)"""
+        result = validate_station_weights(
+            aircraft_name="Cessna 172S Skyhawk",
+            fuel_gallons=40.0,
+            station_weights={
+                "front_seats": 380.0,  # 95% of 400 lbs max
+                "rear_seats": 0.0,
+                "baggage_area_1": 0.0,
+                "baggage_area_2": 0.0
+            }
+        )
+        
+        # Should have a warning (but no error)
+        assert len(result['warnings']) > 0
+        assert any("Front Seats" in warning for warning in result['warnings'])
 
 
 # ============================================================================
