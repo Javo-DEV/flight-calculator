@@ -2184,14 +2184,14 @@ def show_e6b_calculator():
                     reserve_time_end
                 )
                 
-                st.success(f"**Reichweite: {result['range']:.0f} NM**")
+                st.success(f"**Reichweite (mit Reserve): {result['range_with_reserve']:.0f} NM**")
                 
                 col_a, col_b = st.columns(2)
                 with col_a:
-                    hours = int(result['endurance'])
-                    minutes = int((result['endurance'] - hours) * 60)
-                    st.metric("Ausdauer", f"{hours}h {minutes}min")
-                    st.metric("Reichweite", f"{result['range']:.0f} NM")
+                    hours = int(result['endurance_with_reserve'])
+                    minutes = int((result['endurance_with_reserve'] - hours) * 60)
+                    st.metric("Ausdauer (mit Reserve)", f"{hours}h {minutes}min")
+                    st.metric("Reichweite (mit Reserve)", f"{result['range_with_reserve']:.0f} NM")
                 
                 with col_b:
                     st.metric("Usable Fuel", f"{result['endurance_with_reserve'] * fuel_flow_end:.1f} gal")
