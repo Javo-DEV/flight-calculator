@@ -922,7 +922,8 @@ def calculate_fuel_required(
 def calculate_endurance_and_range(
     fuel_available: float,
     fuel_flow: float,
-    ground_speed: float
+    ground_speed: float,
+    reserve_time: int = 45
 ) -> Dict[str, float]:
     """
     Calculate how long and how far you can fly with available fuel.
@@ -931,13 +932,15 @@ def calculate_endurance_and_range(
         fuel_available: Available fuel in gallons
         fuel_flow: Fuel consumption in gallons per hour
         ground_speed: Ground speed in knots
+        reserve_time: Reserve fuel time in minutes (default: 45 for IFR, use 30 for VFR)
     
     Returns:
         Dictionary containing:
         - endurance: Maximum flight time in hours
         - range: Maximum range in nautical miles
-        - endurance_with_reserve: Endurance minus 45-min IFR reserve
-        - range_with_reserve: Range minus 45-min IFR reserve
+        - endurance_with_reserve: Endurance minus reserve
+        - range_with_reserve: Range minus reserve
+        - reserve_time: Reserve time used in minutes
     """
     if fuel_flow <= 0:
         raise ValueError("Fuel flow must be greater than 0")
@@ -948,8 +951,8 @@ def calculate_endurance_and_range(
     # Calculate range (NM)
     range_nm = endurance * ground_speed
     
-    # Calculate with 45-minute reserve
-    reserve_fuel = (45 / 60) * fuel_flow
+    # Calculate with reserve
+    reserve_fuel = (reserve_time / 60) * fuel_flow
     usable_fuel = max(0, fuel_available - reserve_fuel)
     endurance_with_reserve = usable_fuel / fuel_flow
     range_with_reserve = endurance_with_reserve * ground_speed
@@ -959,7 +962,8 @@ def calculate_endurance_and_range(
         "range": range_nm,
         "endurance_with_reserve": endurance_with_reserve,
         "range_with_reserve": range_with_reserve,
-        "reserve_fuel": reserve_fuel
+        "reserve_fuel": reserve_fuel,
+        "reserve_time": reserve_time
     }
 
 

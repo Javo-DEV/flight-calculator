@@ -2176,7 +2176,12 @@ def show_e6b_calculator():
                     """)
             
             elif mode != "Benötigten Treibstoff berechnen" and calc_endurance:
-                result = calculate_endurance_and_range(available_fuel, fuel_flow_end, ground_speed_end
+                reserve_time_end = 30 if flight_rules_end == "VFR" else 45
+                result = calculate_endurance_and_range(
+                    available_fuel, 
+                    fuel_flow_end, 
+                    ground_speed_end,
+                    reserve_time_end
                 )
                 
                 st.success(f"**Reichweite: {result['range']:.0f} NM**")
@@ -2198,10 +2203,11 @@ def show_e6b_calculator():
                     - Verfügbar: {available_fuel:.1f} gal
                     - Ground Speed: {ground_speed_end} kts
                     - Fuel Flow: {fuel_flow_end:.1f} gal/h
+                    - Flugregeln: {flight_rules_end}
                     
                     **Ergebnis:**
                     - Usable: {result['endurance_with_reserve'] * fuel_flow_end:.1f} gal
-                    - Reserve: {result['reserve_fuel']:.1f} gal (45 min)
+                    - Reserve: {result['reserve_fuel']:.1f} gal ({result['reserve_time']} min)
                     - Ausdauer (mit Reserve): {result['endurance_with_reserve']:.2f} h
                     - Reichweite (mit Reserve): {result['range_with_reserve']:.0f} NM
                     - Max. Ausdauer: {result['endurance']:.2f} h

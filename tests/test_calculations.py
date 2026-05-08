@@ -681,6 +681,40 @@ class TestEnduranceAndRange:
         """Test error handling for zero fuel flow"""
         with pytest.raises(ValueError):
             calculate_endurance_and_range(50, 0, 120)
+    
+    def test_vfr_reserve(self):
+        """Test endurance and range with 30-min VFR reserve"""
+        result = calculate_endurance_and_range(
+            fuel_available=50,
+            fuel_flow=10,
+            ground_speed=120,
+            reserve_time=30
+        )
+        
+        # Reserve = 30/60 * 10 = 5.0 gal
+        assert result['reserve_fuel'] == pytest.approx(5.0, rel=0.01)
+        assert result['reserve_time'] == 30
+        # Usable = 50 - 5.0 = 45 gal = 4.5 hours
+        assert result['endurance_with_reserve'] == pytest.approx(4.5, rel=0.01)
+        # Range = 4.5 * 120 = 540 NM
+        assert result['range_with_reserve'] == pytest.approx(540, rel=0.01)
+    
+    def test_ifr_reserve(self):
+        """Test endurance and range with 45-min IFR reserve"""
+        result = calculate_endurance_and_range(
+            fuel_available=50,
+            fuel_flow=10,
+            ground_speed=120,
+            reserve_time=45
+        )
+        
+        # Reserve = 45/60 * 10 = 7.5 gal
+        assert result['reserve_fuel'] == pytest.approx(7.5, rel=0.01)
+        assert result['reserve_time'] == 45
+        # Usable = 50 - 7.5 = 42.5 gal = 4.25 hours
+        assert result['endurance_with_reserve'] == pytest.approx(4.25, rel=0.01)
+        # Range = 4.25 * 120 = 510 NM
+        assert result['range_with_reserve'] == pytest.approx(510, rel=0.01)
 
 
 class TestWindComponents:
