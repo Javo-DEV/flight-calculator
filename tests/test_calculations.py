@@ -30,7 +30,11 @@ from src.calculations import (
     calculate_ground_speed,
     calculate_time_and_fuel,
     calculate_rule_of_thumb_tod,
-    calculate_rule_of_thumb_toc
+    calculate_rule_of_thumb_toc,
+    convert_altitude,
+    convert_distance,
+    convert_weight,
+    convert_fuel_volume
 )
 
 
@@ -349,6 +353,146 @@ class TestCourseConversion:
         """Test Magnetic to True with East variation"""
         result = convert_course(115, 5, from_true=False)
         assert result == pytest.approx(120, abs=0.1)
+
+
+# ============================================================================
+# UNIT CONVERSION TESTS
+# ============================================================================
+
+class TestAltitudeConversion:
+    """Test suite for altitude/length unit conversions"""
+    
+    def test_feet_to_meters(self):
+        """Test feet to meters conversion"""
+        result = convert_altitude(10000, 'feet', 'meters')
+        assert result == pytest.approx(3048.0, rel=0.01)
+    
+    def test_meters_to_feet(self):
+        """Test meters to feet conversion"""
+        result = convert_altitude(3048, 'meters', 'feet')
+        assert result == pytest.approx(10000.0, rel=0.01)
+    
+    def test_feet_to_kilometers(self):
+        """Test feet to kilometers conversion"""
+        result = convert_altitude(10000, 'feet', 'kilometers')
+        assert result == pytest.approx(3.048, rel=0.01)
+    
+    def test_same_unit_returns_same_value(self):
+        """Test that converting to same unit returns original value"""
+        result = convert_altitude(5000, 'feet', 'feet')
+        assert result == 5000.0
+    
+    def test_invalid_unit_raises_error(self):
+        """Test that invalid units raise ValueError"""
+        with pytest.raises(ValueError):
+            convert_altitude(1000, 'feet', 'miles')
+
+
+class TestDistanceConversion:
+    """Test suite for distance unit conversions"""
+    
+    def test_nm_to_km(self):
+        """Test nautical miles to kilometers conversion"""
+        result = convert_distance(100, 'nm', 'km')
+        assert result == pytest.approx(185.2, rel=0.01)
+    
+    def test_km_to_nm(self):
+        """Test kilometers to nautical miles conversion"""
+        result = convert_distance(185.2, 'km', 'nm')
+        assert result == pytest.approx(100.0, rel=0.01)
+    
+    def test_nm_to_miles(self):
+        """Test nautical miles to statute miles conversion"""
+        result = convert_distance(100, 'nm', 'miles')
+        assert result == pytest.approx(115.078, rel=0.01)
+    
+    def test_miles_to_nm(self):
+        """Test statute miles to nautical miles conversion"""
+        result = convert_distance(115.078, 'miles', 'nm')
+        assert result == pytest.approx(100.0, rel=0.01)
+    
+    def test_same_unit_returns_same_value(self):
+        """Test that converting to same unit returns original value"""
+        result = convert_distance(50, 'nm', 'nm')
+        assert result == 50.0
+    
+    def test_invalid_unit_raises_error(self):
+        """Test that invalid units raise ValueError"""
+        with pytest.raises(ValueError):
+            convert_distance(100, 'nm', 'feet')
+
+
+class TestWeightConversion:
+    """Test suite for weight/mass unit conversions"""
+    
+    def test_kg_to_lbs(self):
+        """Test kilograms to pounds conversion"""
+        result = convert_weight(1000, 'kg', 'lbs')
+        assert result == pytest.approx(2204.62, rel=0.01)
+    
+    def test_lbs_to_kg(self):
+        """Test pounds to kilograms conversion"""
+        result = convert_weight(2204.62, 'lbs', 'kg')
+        assert result == pytest.approx(1000.0, rel=0.01)
+    
+    def test_kg_to_tons(self):
+        """Test kilograms to metric tons conversion"""
+        result = convert_weight(1000, 'kg', 'tons')
+        assert result == pytest.approx(1.0, rel=0.01)
+    
+    def test_tons_to_kg(self):
+        """Test metric tons to kilograms conversion"""
+        result = convert_weight(1, 'tons', 'kg')
+        assert result == pytest.approx(1000.0, rel=0.01)
+    
+    def test_same_unit_returns_same_value(self):
+        """Test that converting to same unit returns original value"""
+        result = convert_weight(500, 'kg', 'kg')
+        assert result == 500.0
+    
+    def test_invalid_unit_raises_error(self):
+        """Test that invalid units raise ValueError"""
+        with pytest.raises(ValueError):
+            convert_weight(1000, 'kg', 'ounces')
+
+
+class TestFuelVolumeConversion:
+    """Test suite for fuel volume unit conversions"""
+    
+    def test_liters_to_us_gal(self):
+        """Test liters to US gallons conversion"""
+        result = convert_fuel_volume(100, 'liters', 'us_gal')
+        assert result == pytest.approx(26.4172, rel=0.01)
+    
+    def test_us_gal_to_liters(self):
+        """Test US gallons to liters conversion"""
+        result = convert_fuel_volume(26.4172, 'us_gal', 'liters')
+        assert result == pytest.approx(100.0, rel=0.01)
+    
+    def test_liters_to_imp_gal(self):
+        """Test liters to Imperial gallons conversion"""
+        result = convert_fuel_volume(100, 'liters', 'imp_gal')
+        assert result == pytest.approx(21.9969, rel=0.01)
+    
+    def test_imp_gal_to_liters(self):
+        """Test Imperial gallons to liters conversion"""
+        result = convert_fuel_volume(21.9969, 'imp_gal', 'liters')
+        assert result == pytest.approx(100.0, rel=0.01)
+    
+    def test_us_gal_to_imp_gal(self):
+        """Test US gallons to Imperial gallons conversion"""
+        result = convert_fuel_volume(10, 'us_gal', 'imp_gal')
+        assert result == pytest.approx(8.32674, rel=0.01)
+    
+    def test_same_unit_returns_same_value(self):
+        """Test that converting to same unit returns original value"""
+        result = convert_fuel_volume(50, 'liters', 'liters')
+        assert result == 50.0
+    
+    def test_invalid_unit_raises_error(self):
+        """Test that invalid units raise ValueError"""
+        with pytest.raises(ValueError):
+            convert_fuel_volume(100, 'liters', 'barrels')
 
 
 # ============================================================================

@@ -37,7 +37,11 @@ from src.calculations import (
     calculate_ground_speed,       # Calculate ground speed from TAS and wind
     calculate_rule_of_thumb_tod,  # Quick TOD rule (altitude/300)
     calculate_rule_of_thumb_toc,  # Quick TOC rule (altitude/300)
-    calculate_time_and_fuel       # Calculate flight time and fuel consumption
+    calculate_time_and_fuel,      # Calculate flight time and fuel consumption
+    convert_altitude,             # Convert altitude between feet, meters, km
+    convert_distance,             # Convert distance between NM, km, miles
+    convert_weight,               # Convert weight between kg, lbs, tons
+    convert_fuel_volume           # Convert fuel volume between liters, gallons
 )
 
 # Import aviation constants and default values
@@ -130,7 +134,8 @@ def main():
             "📈 Top of Climb (TOC)",        # TOC/climb rate calculator
             "🌬️ Wind Correction Angle",   # WCA and ground speed calculator
             "🧭 Course Converter",         # True/Magnetic course conversion
-            "📊 Ground Speed"              # Ground speed calculator
+            "📊 Ground Speed",             # Ground speed calculator
+            "🔄 Unit Converter"            # Unit conversion tool
         ]
     )
     
@@ -164,6 +169,8 @@ def main():
         show_course_converter()
     elif calculator == "📊 Ground Speed":
         show_ground_speed_calculator()
+    elif calculator == "🔄 Unit Converter":
+        show_unit_converter()
 
 
 # ============================================================================
@@ -226,6 +233,13 @@ def show_home():
         Schnelle Berechnung der Ground Speed bei gegebenem Heading und Windbedingungen.
         
         **Ideal für:** Schnelle Geschwindigkeitschecks
+        """)
+        
+        st.subheader("🔄 Unit Converter")
+        st.write("""
+        Konvertiert zwischen verschiedenen Einheiten: Höhe, Distanz, Gewicht und Treibstoff.
+        
+        **Ideal für:** Umrechnung zwischen metrischen und Aviation-Einheiten
         """)
     
     st.markdown("---")
@@ -1451,6 +1465,341 @@ def show_ground_speed_calculator():
                 - {hw_type}: {abs(result['headwind_component']):.1f} kts
                 - Seitenwind: {abs(result['crosswind_component']):.1f} kts {cw_direction}
                 """)
+
+
+# ============================================================================
+# UNIT CONVERTER CALCULATOR
+# ============================================================================
+
+def show_unit_converter():
+    """
+    Display the unit converter interface.
+    
+    Provides conversions for:
+    - Altitude/Length: feet, meters, kilometers
+    - Distance: nautical miles, kilometers, statute miles
+    - Weight/Mass: kilograms, pounds, metric tons
+    - Fuel Volume: liters, US gallons, Imperial gallons
+    """
+    st.header("🔄 Unit Converter")
+    
+    st.write("""
+    Konvertieren Sie zwischen verschiedenen Einheiten, die in der Luftfahrt häufig verwendet werden.
+    Wählen Sie die Kategorie und geben Sie den Wert ein.
+    """)
+    
+    # ========================================================================
+    # SELECT CONVERSION CATEGORY
+    # ========================================================================
+    
+    st.subheader("Wählen Sie eine Kategorie")
+    
+    category = st.radio(
+        "Kategorie:",
+        [
+            "📏 Höhe / Länge",
+            "📍 Distanz",
+            "⚖️ Gewicht / Masse",
+            "⛽ Treibstoff-Volumen"
+        ],
+        horizontal=True
+    )
+    
+    st.markdown("---")
+    
+    # ========================================================================
+    # ALTITUDE/LENGTH CONVERTER
+    # ========================================================================
+    
+    if category == "📏 Höhe / Länge":
+        st.subheader("Höhe / Länge Konverter")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            value = st.number_input(
+                "Wert eingeben:",
+                min_value=0.0,
+                value=10000.0,
+                step=100.0,
+                format="%.2f"
+            )
+            
+            from_unit = st.selectbox(
+                "Von:",
+                ["Feet", "Meters", "Kilometers"]
+            )
+        
+        with col2:
+            to_unit = st.selectbox(
+                "Nach:",
+                ["Feet", "Meters", "Kilometers"]
+            )
+        
+        if st.button("🔄 Konvertieren", key="altitude_convert"):
+            try:
+                result = convert_altitude(value, from_unit.lower(), to_unit.lower())
+                
+                st.success(f"**{value:,.2f} {from_unit} = {result:,.2f} {to_unit}**")
+                
+                # Show common aviation references
+                st.markdown('<div class="result-box">', unsafe_allow_html=True)
+                st.write("**Referenzwerte:**")
+                
+                if from_unit.lower() == "feet":
+                    st.write(f"""
+                    - In Metern: {convert_altitude(value, 'feet', 'meters'):,.2f} m
+                    - In Kilometern: {convert_altitude(value, 'feet', 'kilometers'):,.2f} km
+                    """)
+                elif from_unit.lower() == "meters":
+                    st.write(f"""
+                    - In Fuß: {convert_altitude(value, 'meters', 'feet'):,.2f} ft
+                    - In Kilometern: {convert_altitude(value, 'meters', 'kilometers'):,.2f} km
+                    """)
+                else:  # kilometers
+                    st.write(f"""
+                    - In Fuß: {convert_altitude(value, 'kilometers', 'feet'):,.2f} ft
+                    - In Metern: {convert_altitude(value, 'kilometers', 'meters'):,.2f} m
+                    """)
+                
+                st.markdown('</div>', unsafe_allow_html=True)
+                
+            except ValueError as e:
+                st.error(f"Fehler: {e}")
+        
+        with st.expander("ℹ️ Umrechnungsfaktoren"):
+            st.write("""
+            **Häufige Umrechnungen:**
+            - 1 Fuß (ft) = 0.3048 Meter
+            - 1 Meter = 3.28084 Fuß
+            - 1 Kilometer = 3280.84 Fuß
+            
+            **Typische Flughöhen:**
+            - 10,000 ft = 3,048 m (typische Reiseflughöhe GA)
+            - 35,000 ft = 10,668 m (typische Reiseflughöhe Airliner)
+            - FL100 = 10,000 ft
+            """)
+    
+    # ========================================================================
+    # DISTANCE CONVERTER
+    # ========================================================================
+    
+    elif category == "📍 Distanz":
+        st.subheader("Distanz Konverter")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            value = st.number_input(
+                "Wert eingeben:",
+                min_value=0.0,
+                value=100.0,
+                step=1.0,
+                format="%.2f"
+            )
+            
+            from_unit = st.selectbox(
+                "Von:",
+                ["NM", "KM", "Miles"]
+            )
+        
+        with col2:
+            to_unit = st.selectbox(
+                "Nach:",
+                ["NM", "KM", "Miles"]
+            )
+        
+        if st.button("🔄 Konvertieren", key="distance_convert"):
+            try:
+                result = convert_distance(value, from_unit.lower(), to_unit.lower())
+                
+                st.success(f"**{value:,.2f} {from_unit} = {result:,.2f} {to_unit}**")
+                
+                # Show all conversions
+                st.markdown('<div class="result-box">', unsafe_allow_html=True)
+                st.write("**Alle Umrechnungen:**")
+                
+                if from_unit.lower() == "nm":
+                    st.write(f"""
+                    - In Kilometern: {convert_distance(value, 'nm', 'km'):,.2f} km
+                    - In Meilen: {convert_distance(value, 'nm', 'miles'):,.2f} miles
+                    """)
+                elif from_unit.lower() == "km":
+                    st.write(f"""
+                    - In Nautischen Meilen: {convert_distance(value, 'km', 'nm'):,.2f} NM
+                    - In Meilen: {convert_distance(value, 'km', 'miles'):,.2f} miles
+                    """)
+                else:  # miles
+                    st.write(f"""
+                    - In Nautischen Meilen: {convert_distance(value, 'miles', 'nm'):,.2f} NM
+                    - In Kilometern: {convert_distance(value, 'miles', 'km'):,.2f} km
+                    """)
+                
+                st.markdown('</div>', unsafe_allow_html=True)
+                
+            except ValueError as e:
+                st.error(f"Fehler: {e}")
+        
+        with st.expander("ℹ️ Umrechnungsfaktoren"):
+            st.write("""
+            **Häufige Umrechnungen:**
+            - 1 Nautische Meile (NM) = 1.852 Kilometer
+            - 1 Nautische Meile = 1.15078 Statute Miles
+            - 1 Kilometer = 0.539957 NM
+            
+            **Typische Distanzen:**
+            - 100 NM = 185.2 km (typische regionale Strecke)
+            - 1 NM ≈ 6076 Fuß
+            - 1 Grad Breitengrad = 60 NM
+            """)
+    
+    # ========================================================================
+    # WEIGHT/MASS CONVERTER
+    # ========================================================================
+    
+    elif category == "⚖️ Gewicht / Masse":
+        st.subheader("Gewicht / Masse Konverter")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            value = st.number_input(
+                "Wert eingeben:",
+                min_value=0.0,
+                value=1000.0,
+                step=10.0,
+                format="%.2f"
+            )
+            
+            from_unit = st.selectbox(
+                "Von:",
+                ["KG", "LBS", "Tons"]
+            )
+        
+        with col2:
+            to_unit = st.selectbox(
+                "Nach:",
+                ["KG", "LBS", "Tons"]
+            )
+        
+        if st.button("🔄 Konvertieren", key="weight_convert"):
+            try:
+                result = convert_weight(value, from_unit.lower(), to_unit.lower())
+                
+                st.success(f"**{value:,.2f} {from_unit} = {result:,.2f} {to_unit}**")
+                
+                # Show all conversions
+                st.markdown('<div class="result-box">', unsafe_allow_html=True)
+                st.write("**Alle Umrechnungen:**")
+                
+                if from_unit.lower() == "kg":
+                    st.write(f"""
+                    - In Pounds: {convert_weight(value, 'kg', 'lbs'):,.2f} lbs
+                    - In Tonnen: {convert_weight(value, 'kg', 'tons'):,.4f} tons
+                    """)
+                elif from_unit.lower() == "lbs":
+                    st.write(f"""
+                    - In Kilogramm: {convert_weight(value, 'lbs', 'kg'):,.2f} kg
+                    - In Tonnen: {convert_weight(value, 'lbs', 'tons'):,.4f} tons
+                    """)
+                else:  # tons
+                    st.write(f"""
+                    - In Kilogramm: {convert_weight(value, 'tons', 'kg'):,.2f} kg
+                    - In Pounds: {convert_weight(value, 'tons', 'lbs'):,.2f} lbs
+                    """)
+                
+                st.markdown('</div>', unsafe_allow_html=True)
+                
+            except ValueError as e:
+                st.error(f"Fehler: {e}")
+        
+        with st.expander("ℹ️ Umrechnungsfaktoren"):
+            st.write("""
+            **Häufige Umrechnungen:**
+            - 1 Kilogramm (kg) = 2.20462 Pounds (lbs)
+            - 1 Pound = 0.453592 kg
+            - 1 Metrische Tonne = 1000 kg = 2204.62 lbs
+            
+            **Typische Gewichte:**
+            - Cessna 172 Max. Takeoff Weight: ~2,450 lbs (1,111 kg)
+            - Boeing 737-800 Max. Takeoff Weight: ~79,000 kg (174,000 lbs)
+            - Pilotgewicht: ~70-100 kg (154-220 lbs)
+            """)
+    
+    # ========================================================================
+    # FUEL VOLUME CONVERTER
+    # ========================================================================
+    
+    elif category == "⛽ Treibstoff-Volumen":
+        st.subheader("Treibstoff-Volumen Konverter")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            value = st.number_input(
+                "Wert eingeben:",
+                min_value=0.0,
+                value=100.0,
+                step=1.0,
+                format="%.2f"
+            )
+            
+            from_unit = st.selectbox(
+                "Von:",
+                ["Liters", "US_Gal", "Imp_Gal"]
+            )
+        
+        with col2:
+            to_unit = st.selectbox(
+                "Nach:",
+                ["Liters", "US_Gal", "Imp_Gal"]
+            )
+        
+        if st.button("🔄 Konvertieren", key="fuel_convert"):
+            try:
+                result = convert_fuel_volume(value, from_unit.lower(), to_unit.lower())
+                
+                st.success(f"**{value:,.2f} {from_unit} = {result:,.2f} {to_unit}**")
+                
+                # Show all conversions
+                st.markdown('<div class="result-box">', unsafe_allow_html=True)
+                st.write("**Alle Umrechnungen:**")
+                
+                if from_unit.lower() == "liters":
+                    st.write(f"""
+                    - In US Gallons: {convert_fuel_volume(value, 'liters', 'us_gal'):,.2f} US gal
+                    - In Imperial Gallons: {convert_fuel_volume(value, 'liters', 'imp_gal'):,.2f} Imp gal
+                    """)
+                elif from_unit.lower() == "us_gal":
+                    st.write(f"""
+                    - In Liters: {convert_fuel_volume(value, 'us_gal', 'liters'):,.2f} L
+                    - In Imperial Gallons: {convert_fuel_volume(value, 'us_gal', 'imp_gal'):,.2f} Imp gal
+                    """)
+                else:  # imp_gal
+                    st.write(f"""
+                    - In Liters: {convert_fuel_volume(value, 'imp_gal', 'liters'):,.2f} L
+                    - In US Gallons: {convert_fuel_volume(value, 'imp_gal', 'us_gal'):,.2f} US gal
+                    """)
+                
+                st.markdown('</div>', unsafe_allow_html=True)
+                
+            except ValueError as e:
+                st.error(f"Fehler: {e}")
+        
+        with st.expander("ℹ️ Umrechnungsfaktoren"):
+            st.write("""
+            **Häufige Umrechnungen:**
+            - 1 Liter = 0.264172 US Gallons
+            - 1 Liter = 0.219969 Imperial Gallons
+            - 1 US Gallon = 3.78541 Liters
+            - 1 Imperial Gallon = 4.54609 Liters
+            - 1 Imperial Gallon = 1.20095 US Gallons
+            
+            **Typische Tankkapazitäten:**
+            - Cessna 172: ~56 US gal (~212 L)
+            - Boeing 737-800: ~26,000 L (~6,875 US gal)
+            - Durchschnittlicher Verbrauch GA: 8-12 US gal/h (~30-45 L/h)
+            """)
 
 
 if __name__ == "__main__":

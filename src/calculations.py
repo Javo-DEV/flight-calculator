@@ -528,3 +528,194 @@ def calculate_rule_of_thumb_toc(altitude_gain: float, climb_rate: float = 500) -
     # Assuming ~100 kts GS: dist = 100 × (alt_gain / climb_rate) / 60
     # For 500 fpm: dist ≈ alt_gain / 300
     return altitude_gain / 300.0
+
+
+# ============================================================================
+# UNIT CONVERSION FUNCTIONS
+# ============================================================================
+
+def convert_altitude(value: float, from_unit: str, to_unit: str) -> float:
+    """
+    Convert altitude/length between feet, meters, and kilometers.
+    
+    Args:
+        value: The value to convert
+        from_unit: Source unit ('feet', 'meters', 'kilometers')
+        to_unit: Target unit ('feet', 'meters', 'kilometers')
+    
+    Returns:
+        Converted value
+    
+    Raises:
+        ValueError: If invalid units are provided
+    """
+    from .constants import (
+        FEET_TO_METERS, METERS_TO_FEET,
+        FEET_TO_KILOMETERS, KILOMETERS_TO_FEET
+    )
+    
+    # Normalize unit names
+    from_unit = from_unit.lower()
+    to_unit = to_unit.lower()
+    
+    # If same unit, return as-is
+    if from_unit == to_unit:
+        return value
+    
+    # Convert to feet first (base unit)
+    if from_unit == 'feet':
+        value_in_feet = value
+    elif from_unit == 'meters':
+        value_in_feet = value * METERS_TO_FEET
+    elif from_unit == 'kilometers':
+        value_in_feet = value * KILOMETERS_TO_FEET
+    else:
+        raise ValueError(f"Unknown altitude unit: {from_unit}")
+    
+    # Convert from feet to target unit
+    if to_unit == 'feet':
+        return value_in_feet
+    elif to_unit == 'meters':
+        return value_in_feet * FEET_TO_METERS
+    elif to_unit == 'kilometers':
+        return value_in_feet * FEET_TO_KILOMETERS
+    else:
+        raise ValueError(f"Unknown altitude unit: {to_unit}")
+
+
+def convert_distance(value: float, from_unit: str, to_unit: str) -> float:
+    """
+    Convert distance between nautical miles, kilometers, and statute miles.
+    
+    Args:
+        value: The value to convert
+        from_unit: Source unit ('nm', 'km', 'miles')
+        to_unit: Target unit ('nm', 'km', 'miles')
+    
+    Returns:
+        Converted value
+    
+    Raises:
+        ValueError: If invalid units are provided
+    """
+    from .constants import (
+        NM_TO_KM, KM_TO_NM,
+        NM_TO_MILES, MILES_TO_NM,
+        KM_TO_MILES, MILES_TO_KM
+    )
+    
+    # Normalize unit names
+    from_unit = from_unit.lower()
+    to_unit = to_unit.lower()
+    
+    # If same unit, return as-is
+    if from_unit == to_unit:
+        return value
+    
+    # Direct conversions
+    conversion_map = {
+        ('nm', 'km'): NM_TO_KM,
+        ('km', 'nm'): KM_TO_NM,
+        ('nm', 'miles'): NM_TO_MILES,
+        ('miles', 'nm'): MILES_TO_NM,
+        ('km', 'miles'): KM_TO_MILES,
+        ('miles', 'km'): MILES_TO_KM,
+    }
+    
+    key = (from_unit, to_unit)
+    if key in conversion_map:
+        return value * conversion_map[key]
+    else:
+        raise ValueError(f"Cannot convert from {from_unit} to {to_unit}")
+
+
+def convert_weight(value: float, from_unit: str, to_unit: str) -> float:
+    """
+    Convert weight/mass between kilograms, pounds, and metric tons.
+    
+    Args:
+        value: The value to convert
+        from_unit: Source unit ('kg', 'lbs', 'tons')
+        to_unit: Target unit ('kg', 'lbs', 'tons')
+    
+    Returns:
+        Converted value
+    
+    Raises:
+        ValueError: If invalid units are provided
+    """
+    from .constants import (
+        KG_TO_LBS, LBS_TO_KG,
+        KG_TO_TONS, TONS_TO_KG,
+        LBS_TO_TONS, TONS_TO_LBS
+    )
+    
+    # Normalize unit names
+    from_unit = from_unit.lower()
+    to_unit = to_unit.lower()
+    
+    # If same unit, return as-is
+    if from_unit == to_unit:
+        return value
+    
+    # Direct conversions
+    conversion_map = {
+        ('kg', 'lbs'): KG_TO_LBS,
+        ('lbs', 'kg'): LBS_TO_KG,
+        ('kg', 'tons'): KG_TO_TONS,
+        ('tons', 'kg'): TONS_TO_KG,
+        ('lbs', 'tons'): LBS_TO_TONS,
+        ('tons', 'lbs'): TONS_TO_LBS,
+    }
+    
+    key = (from_unit, to_unit)
+    if key in conversion_map:
+        return value * conversion_map[key]
+    else:
+        raise ValueError(f"Cannot convert from {from_unit} to {to_unit}")
+
+
+def convert_fuel_volume(value: float, from_unit: str, to_unit: str) -> float:
+    """
+    Convert fuel volume between liters, US gallons, and Imperial gallons.
+    
+    Args:
+        value: The value to convert
+        from_unit: Source unit ('liters', 'us_gal', 'imp_gal')
+        to_unit: Target unit ('liters', 'us_gal', 'imp_gal')
+    
+    Returns:
+        Converted value
+    
+    Raises:
+        ValueError: If invalid units are provided
+    """
+    from .constants import (
+        LITERS_TO_US_GALLONS, US_GALLONS_TO_LITERS,
+        LITERS_TO_IMP_GALLONS, IMP_GALLONS_TO_LITERS,
+        US_GALLONS_TO_IMP_GALLONS, IMP_GALLONS_TO_US_GALLONS
+    )
+    
+    # Normalize unit names
+    from_unit = from_unit.lower()
+    to_unit = to_unit.lower()
+    
+    # If same unit, return as-is
+    if from_unit == to_unit:
+        return value
+    
+    # Direct conversions
+    conversion_map = {
+        ('liters', 'us_gal'): LITERS_TO_US_GALLONS,
+        ('us_gal', 'liters'): US_GALLONS_TO_LITERS,
+        ('liters', 'imp_gal'): LITERS_TO_IMP_GALLONS,
+        ('imp_gal', 'liters'): IMP_GALLONS_TO_LITERS,
+        ('us_gal', 'imp_gal'): US_GALLONS_TO_IMP_GALLONS,
+        ('imp_gal', 'us_gal'): IMP_GALLONS_TO_US_GALLONS,
+    }
+    
+    key = (from_unit, to_unit)
+    if key in conversion_map:
+        return value * conversion_map[key]
+    else:
+        raise ValueError(f"Cannot convert from {from_unit} to {to_unit}")

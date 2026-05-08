@@ -13,6 +13,7 @@ Diese Anwendung bietet verschiedene Berechnungstools für präzise Flugplanung u
 - **🌬️ Wind Correction Angle** - Ermittelt Windkorrektur und Ground Speed
 - **🧭 Course Converter** - Konvertiert zwischen True und Magnetic Course (TVMDC)
 - **📊 Ground Speed Calculator** - Schnelle Geschwindigkeitsberechnung bei bekanntem Heading
+- **🔄 Unit Converter** - Konvertiert zwischen Höhe, Distanz, Gewicht und Treibstoff-Einheiten
 
 ### 🎯 Technologie
 
@@ -101,6 +102,14 @@ Schnelle Ground Speed Berechnung:
 - Eingabe: True Airspeed, True Heading, Wind FROM, Wind Speed
 - Ausgabe: Ground Speed, Actual Track, Wind-Komponenten
 - Optional: Flugzeitberechnung bei bekannter Distanz
+
+#### Unit Converter
+Konvertiert zwischen verschiedenen Einheiten:
+- **Höhe/Länge:** Feet ↔ Meters ↔ Kilometers
+- **Distanz:** Nautical Miles ↔ Kilometers ↔ Statute Miles
+- **Gewicht/Masse:** Kilograms ↔ Pounds ↔ Metric Tons
+- **Treibstoff-Volumen:** Liters ↔ US Gallons ↔ Imperial Gallons
+- Inkl. Referenzwerte und typischen Beispielen für jede Kategorie
 
 ## 🎨 UI-Architektur
 
