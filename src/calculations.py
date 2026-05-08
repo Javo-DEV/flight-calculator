@@ -846,6 +846,7 @@ def calculate_density_altitude(
     return {
         "density_altitude": density_alt,
         "pressure_altitude": pressure_alt,
+        "isa_temp": isa_temp_at_altitude,
         "isa_deviation": temp_deviation,
         "performance_impact": impact
     }
