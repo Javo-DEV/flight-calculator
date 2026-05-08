@@ -321,12 +321,12 @@ class TestWindCorrection:
         result = calculate_wind_correction(
             true_airspeed=120,
             true_course=360,  # North
-            wind_direction=90,  # From east
+            wind_direction=90,  # From east (wind from right)
             wind_speed=20
         )
         
-        # Should correct left (negative WCA)
-        assert result['wind_correction_angle'] < 0
+        # Wind from right pushes aircraft left, so we must correct right (positive WCA)
+        assert result['wind_correction_angle'] > 0
         assert result['crosswind_component'] == pytest.approx(20, rel=0.1)
 
 
