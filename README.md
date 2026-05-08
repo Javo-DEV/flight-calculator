@@ -140,36 +140,28 @@ INPUT (links) → BUTTON → RESULTS (rechts) → VISUALIZATION (unten)
 
 ### Beispiel: Wind Correction Angle Calculator
 
-```
-┌─────────────────────────────────────────────┐
-│  Header: "Wind Correction Angle Calculator" │
-├──────────────────┬──────────────────────────┤
-│  EINGABE (col1)  │  ERGEBNIS (col2)         │
-│  ───────────────│───────────────────────   │
-│  Input Fields:   │  ┌──────┬──────┐        │
-│  - TAS           │  │col_a │col_b │        │
-│  - True Course   │  ├──────┼──────┤        │
-│  - Wind FROM     │  │WCA   │Ground│        │
-│  - Wind Speed    │  │      │Speed │        │
-│                  │  │True  │Drift │        │
-│  🧮 Berechnen    │  │Headi.│Angle │        │
-│    (Button)      │  └──────┴──────┘        │
-│                  │  ────────────────        │
-│                  │  Wind-Komponenten:       │
-│                  │  ┌──────┬──────┐        │
-│                  │  │col_c │col_d │        │
-│                  │  ├──────┼──────┤        │
-│                  │  │Gegen-│Seite.│        │
-│                  │  │wind  │wind  │        │
-│                  │  └──────┴──────┘        │
-│                  │  ────────────────        │
-│                  │  ℹ️ Erklärung            │
-│                  │  (Expander)              │
-│                  │  ────────────────        │
-│                  │  🎨 Wind-Dreieck         │
-│                  │  (Matplotlib Plot)       │
-└──────────────────┴──────────────────────────┘
-```
+| **Bereich** | **Container-Typ** | **Inhalt** | **Layout** |
+|-------------|-------------------|------------|------------|
+| 📋 **Header** | `st.header()` | Titel + Beschreibung | Volle Breite |
+| | | | |
+| **🟢 Eingabe-Spalte (col1)** | | | **50% Links** |
+| ↳ Input 1 | `st.number_input()` | True Airspeed (TAS) | |
+| ↳ Input 2 | `st.number_input()` | True Course | |
+| ↳ Input 3 | `st.number_input()` | Wind FROM | |
+| ↳ Input 4 | `st.number_input()` | Wind Speed | |
+| ↳ Action | `st.button()` | 🧮 **Berechnen** | Blau #1E88E5 |
+| | | | |
+| **🟠 Ergebnis-Spalte (col2)** | | | **50% Rechts** |
+| ↳ Haupt-Metriken | `st.columns(2)` | col_a + col_b | 2-spaltig |
+| &nbsp;&nbsp;&nbsp;• WCA | `st.metric()` | Wind Correction Angle | col_a |
+| &nbsp;&nbsp;&nbsp;• Ground Speed | `st.metric()` | Berechnete GS | col_b |
+| &nbsp;&nbsp;&nbsp;• True Heading | `st.metric()` | Korrigierter Kurs | col_a |
+| &nbsp;&nbsp;&nbsp;• Drift Angle | `st.metric()` | Abtrift | col_b |
+| ↳ Wind-Details | `st.columns(2)` | col_c + col_d | 2-spaltig |
+| &nbsp;&nbsp;&nbsp;• Gegen-/Rückenwind | `st.metric()` | Headwind/Tailwind | col_c |
+| &nbsp;&nbsp;&nbsp;• Seitenwind | `st.metric()` | Crosswind | col_d |
+| ↳ Erklärung | `st.expander()` | Klappbarer Hilfetext | Volle Breite |
+| ↳ Visualisierung | `st.pyplot()` | 🎨 Wind Triangle Plot | Volle Breite |
 
 ## 📐 Einheiten
 
