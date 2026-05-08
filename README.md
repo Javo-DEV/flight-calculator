@@ -98,12 +98,14 @@ Schnelle Ground Speed Berechnung:
 
 Alle Calculator-Screens folgen einem einheitlichen **2-Spalten-Layout** für eine konsistente Benutzererfahrung:
 
-| **Bereich** | **Beschreibung** | **Breite** |
-|-------------|------------------|------------|
-| 📋 **Header** | Titel + Beschreibung des Calculators | Volle Breite (100%) |
-| | | |
-| **🟢 Eingabe-Spalte (col1)** | Input-Felder und Aktions-Button | 50% (links) |
-| **🟠 Ergebnis-Spalte (col2)** | Metriken, Ergebnisse und Visualisierungen | 50% (rechts) |
+```
+┌─────────────────────────────────────────────┐
+│         Header + Beschreibung               │
+├──────────────────┬──────────────────────────┤
+│   Eingabe-Spalte │  Ergebnis-Spalte        │
+│   (col1)         │  (col2)                  │
+└──────────────────┴──────────────────────────┘
+```
 
 ### Container-Typen
 
