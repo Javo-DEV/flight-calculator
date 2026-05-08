@@ -2157,7 +2157,7 @@ def show_e6b_calculator():
                     st.metric("Trip Fuel", f"{result['fuel_required']:.1f} gal")
                 
                 with col_b:
-                    st.metric("Reserve", f"{result['reserve_fuel']:.1f} gal")
+                    st.metric("Reserve", f"{result['fuel_reserve']:.1f} gal")
                     st.metric("Total", f"{result['total_fuel']:.1f} gal")
                 
                 with st.expander("ℹ️ Details"):
@@ -2171,7 +2171,7 @@ def show_e6b_calculator():
                     **Ergebnis:**
                     - Flugzeit: {result['flight_time']:.2f} Stunden
                     - Trip Fuel: {result['fuel_required']:.1f} gal
-                    - Reserve ({result['reserve_time']} min): {result['reserve_fuel']:.1f} gal
+                    - Reserve ({result['reserve_time']} min): {result['fuel_reserve']:.1f} gal
                     - **Total: {result['total_fuel']:.1f} gal**
                     """)
             
