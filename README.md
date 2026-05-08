@@ -98,13 +98,22 @@ Schnelle Ground Speed Berechnung:
 
 Alle Calculator-Screens folgen einem einheitlichen **2-Spalten-Layout** für eine konsistente Benutzererfahrung:
 
-```
-┌─────────────────────────────────────────────┐
-│         Header + Beschreibung               │
-├──────────────────┬──────────────────────────┤
-│   Eingabe-Spalte │  Ergebnis-Spalte        │
-│   (col1)         │  (col2)                  │
-└──────────────────┴──────────────────────────┘
+```mermaid
+graph TB
+    subgraph Screen["📱 Calculator Screen"]
+        Header["📋 Header + Beschreibung"]
+        subgraph Layout["2-Spalten Layout"]
+            Col1["📝 Eingabe-Spalte<br/>(col1)<br/>Input Fields<br/>Button"]
+            Col2["📊 Ergebnis-Spalte<br/>(col2)<br/>Metriken<br/>Infos"]
+        end
+    end
+    Header --> Layout
+    
+    style Header fill:#1E88E5,color:#fff,stroke:#0D47A1
+    style Col1 fill:#4CAF50,color:#fff,stroke:#2E7D32
+    style Col2 fill:#FF9800,color:#fff,stroke:#E65100
+    style Screen fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style Layout fill:#fff,stroke:#666
 ```
 
 ### Container-Typen
@@ -126,8 +135,17 @@ Alle Calculator-Screens folgen einem einheitlichen **2-Spalten-Layout** für ein
 ### Typischer Workflow
 
 **Alle Calculator folgen diesem Schema:**
-```
-INPUT (links) → BUTTON → RESULTS (rechts) → VISUALIZATION (unten)
+
+```mermaid
+graph LR
+    A[📝 INPUT<br/>links] --> B[🧮 BUTTON]
+    B --> C[📊 RESULTS<br/>rechts]
+    C --> D[🎨 VISUALIZATION<br/>unten]
+    
+    style A fill:#4CAF50,color:#fff,stroke:#2E7D32,stroke-width:2px
+    style B fill:#1E88E5,color:#fff,stroke:#0D47A1,stroke-width:2px
+    style C fill:#FF9800,color:#fff,stroke:#E65100,stroke-width:2px
+    style D fill:#9C27B0,color:#fff,stroke:#6A1B9A,stroke-width:2px
 ```
 
 **User Flow:**
@@ -140,35 +158,52 @@ INPUT (links) → BUTTON → RESULTS (rechts) → VISUALIZATION (unten)
 
 ### Beispiel: Wind Correction Angle Calculator
 
-```
-┌─────────────────────────────────────────────┐
-│  Header: "Wind Correction Angle Calculator" │
-├──────────────────┬──────────────────────────┤
-│  EINGABE (col1)  │  ERGEBNIS (col2)         │
-│  ───────────────│───────────────────────   │
-│  Input Fields:   │  ┌──────┬──────┐        │
-│  - TAS           │  │col_a │col_b │        │
-│  - True Course   │  ├──────┼──────┤        │
-│  - Wind FROM     │  │WCA   │Ground│        │
-│  - Wind Speed    │  │      │Speed │        │
-│                  │  │True  │Drift │        │
-│  🧮 Berechnen    │  │Headi.│Angle │        │
-│    (Button)      │  └──────┴──────┘        │
-│                  │  ────────────────        │
-│                  │  Wind-Komponenten:       │
-│                  │  ┌──────┬──────┐        │
-│                  │  │col_c │col_d │        │
-│                  │  ├──────┼──────┤        │
-│                  │  │Gegen-│Seite.│        │
-│                  │  │wind  │wind  │        │
-│                  │  └──────┴──────┘        │
-│                  │  ────────────────        │
-│                  │  ℹ️ Erklärung            │
-│                  │  (Expander)              │
-│                  │  ────────────────        │
-│                  │  🎨 Wind-Dreieck         │
-│                  │  (Matplotlib Plot)       │
-└──────────────────┴──────────────────────────┘
+```mermaid
+graph TB
+    Header["🌬️ Wind Correction Angle Calculator<br/>Beschreibung"]
+    
+    subgraph MainLayout["2-Spalten Hauptlayout"]
+        subgraph Col1["EINGABE col1"]
+            Input1["📊 TAS number_input"]
+            Input2["🧭 True Course number_input"]
+            Input3["💨 Wind FROM number_input"]
+            Input4["⚡ Wind Speed number_input"]
+            Button["🧮 Berechnen Button"]
+        end
+        
+        subgraph Col2["ERGEBNIS col2"]
+            subgraph SubCols1["Sub-Spalten col_a + col_b"]
+                MetricA1["📐 WCA metric"]
+                MetricB1["✈️ Ground Speed metric"]
+                MetricA2["🧭 True Heading metric"]
+                MetricB2["📊 Drift Angle metric"]
+            end
+            
+            WindHeader["💨 Wind-Komponenten"]
+            
+            subgraph SubCols2["Sub-Spalten col_c + col_d"]
+                MetricC["⬆️ Gegenwind/Rückenwind metric"]
+                MetricD["↔️ Seitenwind metric"]
+            end
+            
+            Expander["ℹ️ Erklärung Expander"]
+            Plot["🎨 Wind-Dreieck pyplot"]
+        end
+    end
+    
+    Header --> MainLayout
+    Input1 --> Input2 --> Input3 --> Input4 --> Button
+    Button -.Berechnung.-> SubCols1
+    SubCols1 --> WindHeader --> SubCols2 --> Expander --> Plot
+    
+    style Header fill:#1E88E5,color:#fff,stroke:#0D47A1,stroke-width:2px
+    style Col1 fill:#4CAF50,color:#fff,stroke:#2E7D32,stroke-width:2px
+    style Col2 fill:#FF9800,color:#fff,stroke:#E65100,stroke-width:2px
+    style Button fill:#1E88E5,color:#fff,stroke:#0D47A1,stroke-width:3px
+    style SubCols1 fill:#FFF3E0,stroke:#F57C00
+    style SubCols2 fill:#E3F2FD,stroke:#1976D2
+    style Plot fill:#F3E5F5,color:#000,stroke:#7B1FA2,stroke-width:2px
+    style MainLayout fill:#fafafa,stroke:#666,stroke-width:2px
 ```
 
 ## 📐 Einheiten
