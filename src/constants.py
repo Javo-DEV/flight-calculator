@@ -98,4 +98,8 @@ DENSITY_ALTITUDE_TEMP_CORRECTION = 120  # feet per degree C above ISA
 # Fuel Constants
 MIN_FUEL_RESERVE_TIME = 30  # minutes (VFR day minimum)
 MIN_FUEL_RESERVE_TIME_NIGHT = 45  # minutes (VFR night minimum)
+
+# Fuel Weight (typical values)
+AVGAS_WEIGHT_PER_GALLON = 6.0  # lbs per US gallon (100LL AvGas)
+JET_A_WEIGHT_PER_GALLON = 6.7  # lbs per US gallon (Jet-A)
 IFR_FUEL_RESERVE_TIME = 45  # minutes (IFR minimum)

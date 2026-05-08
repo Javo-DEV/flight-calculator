@@ -57,7 +57,9 @@ from src.calculations import (
 from src.constants import (
     STANDARD_DESCENT_ANGLE,    # Default 3° descent angle (ILS glideslope)
     DEFAULT_TAS,               # Default True Airspeed (120 kts)
-    DEFAULT_CRUISE_ALTITUDE    # Default cruise altitude (5000 ft)
+    DEFAULT_CRUISE_ALTITUDE,   # Default cruise altitude (5000 ft)
+    AVGAS_WEIGHT_PER_GALLON,   # AvGas weight: 6.0 lbs/gal
+    LBS_TO_KG                   # Conversion: lbs to kg
 )
 
 # Import aircraft database
@@ -2147,18 +2149,26 @@ def show_e6b_calculator():
                     reserve_time=reserve_time
                 )
                 
-                st.success(f"**Benötigter Treibstoff: {result['total_fuel']:.1f} gal**")
+                # Convert fuel to lbs and kg
+                total_lbs = result['total_fuel'] * AVGAS_WEIGHT_PER_GALLON
+                total_kg = total_lbs * LBS_TO_KG
+                trip_lbs = result['fuel_required'] * AVGAS_WEIGHT_PER_GALLON
+                trip_kg = trip_lbs * LBS_TO_KG
+                reserve_lbs = result['fuel_reserve'] * AVGAS_WEIGHT_PER_GALLON
+                reserve_kg = reserve_lbs * LBS_TO_KG
+                
+                st.success(f"**Benötigter Treibstoff: {result['total_fuel']:.1f} gal ({total_lbs:.1f} lbs / {total_kg:.1f} kg)**")
                 
                 col_a, col_b = st.columns(2)
                 with col_a:
                     hours = int(result['flight_time'])
                     minutes = int((result['flight_time'] - hours) * 60)
                     st.metric("Flugzeit", f"{hours}h {minutes}min")
-                    st.metric("Trip Fuel", f"{result['fuel_required']:.1f} gal")
+                    st.metric("Trip Fuel", f"{result['fuel_required']:.1f} gal", delta=f"{trip_lbs:.1f} lbs / {trip_kg:.1f} kg")
                 
                 with col_b:
-                    st.metric("Reserve", f"{result['fuel_reserve']:.1f} gal")
-                    st.metric("Total", f"{result['total_fuel']:.1f} gal")
+                    st.metric("Reserve", f"{result['fuel_reserve']:.1f} gal", delta=f"{reserve_lbs:.1f} lbs / {reserve_kg:.1f} kg")
+                    st.metric("Total", f"{result['total_fuel']:.1f} gal", delta=f"{total_lbs:.1f} lbs / {total_kg:.1f} kg")
                 
                 with st.expander("ℹ️ Details"):
                     st.write(f"""
@@ -2170,9 +2180,11 @@ def show_e6b_calculator():
                     
                     **Ergebnis:**
                     - Flugzeit: {result['flight_time']:.2f} Stunden
-                    - Trip Fuel: {result['fuel_required']:.1f} gal
-                    - Reserve ({result['reserve_time']} min): {result['fuel_reserve']:.1f} gal
-                    - **Total: {result['total_fuel']:.1f} gal**
+                    - Trip Fuel: {result['fuel_required']:.1f} gal ({trip_lbs:.1f} lbs / {trip_kg:.1f} kg)
+                    - Reserve ({result['reserve_time']} min): {result['fuel_reserve']:.1f} gal ({reserve_lbs:.1f} lbs / {reserve_kg:.1f} kg)
+                    - **Total: {result['total_fuel']:.1f} gal ({total_lbs:.1f} lbs / {total_kg:.1f} kg)**
+                    
+                    *AvGas: {AVGAS_WEIGHT_PER_GALLON} lbs/gal*
                     """)
             
             elif mode != "Benötigten Treibstoff berechnen" and calc_endurance:
@@ -2184,6 +2196,15 @@ def show_e6b_calculator():
                     reserve_time_end
                 )
                 
+                # Convert fuel to lbs and kg
+                usable_fuel = result['endurance_with_reserve'] * fuel_flow_end
+                usable_lbs = usable_fuel * AVGAS_WEIGHT_PER_GALLON
+                usable_kg = usable_lbs * LBS_TO_KG
+                reserve_lbs = result['reserve_fuel'] * AVGAS_WEIGHT_PER_GALLON
+                reserve_kg = reserve_lbs * LBS_TO_KG
+                available_lbs = available_fuel * AVGAS_WEIGHT_PER_GALLON
+                available_kg = available_lbs * LBS_TO_KG
+                
                 st.success(f"**Reichweite (mit Reserve): {result['range_with_reserve']:.0f} NM**")
                 
                 col_a, col_b = st.columns(2)
@@ -2194,24 +2215,26 @@ def show_e6b_calculator():
                     st.metric("Reichweite (mit Reserve)", f"{result['range_with_reserve']:.0f} NM")
                 
                 with col_b:
-                    st.metric("Usable Fuel", f"{result['endurance_with_reserve'] * fuel_flow_end:.1f} gal")
-                    st.metric("Reserve", f"{result['reserve_fuel']:.1f} gal")
+                    st.metric("Usable Fuel", f"{usable_fuel:.1f} gal", delta=f"{usable_lbs:.1f} lbs / {usable_kg:.1f} kg")
+                    st.metric("Reserve", f"{result['reserve_fuel']:.1f} gal", delta=f"{reserve_lbs:.1f} lbs / {reserve_kg:.1f} kg")
                 
                 with st.expander("ℹ️ Details"):
                     st.write(f"""
                     **Eingaben:**
-                    - Verfügbar: {available_fuel:.1f} gal
+                    - Verfügbar: {available_fuel:.1f} gal ({available_lbs:.1f} lbs / {available_kg:.1f} kg)
                     - Ground Speed: {ground_speed_end} kts
                     - Fuel Flow: {fuel_flow_end:.1f} gal/h
                     - Flugregeln: {flight_rules_end}
                     
                     **Ergebnis:**
-                    - Usable: {result['endurance_with_reserve'] * fuel_flow_end:.1f} gal
-                    - Reserve: {result['reserve_fuel']:.1f} gal ({result['reserve_time']} min)
+                    - Usable: {usable_fuel:.1f} gal ({usable_lbs:.1f} lbs / {usable_kg:.1f} kg)
+                    - Reserve: {result['reserve_fuel']:.1f} gal ({reserve_lbs:.1f} lbs / {reserve_kg:.1f} kg) — {result['reserve_time']} min
                     - Ausdauer (mit Reserve): {result['endurance_with_reserve']:.2f} h
                     - Reichweite (mit Reserve): {result['range_with_reserve']:.0f} NM
                     - Max. Ausdauer: {result['endurance']:.2f} h
                     - Max. Reichweite: {result['range']:.0f} NM
+                    
+                    *AvGas: {AVGAS_WEIGHT_PER_GALLON} lbs/gal*
                     """)
     
     # ========================================================================
