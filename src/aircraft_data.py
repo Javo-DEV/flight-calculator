@@ -73,8 +73,8 @@ AIRCRAFT_DATABASE = {
     
     "Cessna 208B Grand Caravan": {
         "empty_weight": 4730,  # lbs (typical)
-        "empty_arm": 161.0,  # inches
-        "empty_moment": 761330,  # lb-in
+        "empty_arm": 143.5,  # inches (within envelope)
+        "empty_moment": 678755,  # lb-in (4730 * 143.5)
         
         # Weight Limits
         "max_ramp_weight": 8807,  # lbs
@@ -83,8 +83,8 @@ AIRCRAFT_DATABASE = {
         
         # Fuel
         "fuel_capacity": 335,  # US gallons (usable)
-        "fuel_weight_per_gallon": 6.0,  # lbs/gal (Jet-A for turbine)
-        "fuel_arm": 148.0,  # inches
+        "fuel_weight_per_gallon": 6.7,  # lbs/gal (Jet-A is heavier than AvGas)
+        "fuel_arm": 141.0,  # inches (wing tanks, forward of empty CG)
         
         # Stations
         "stations": {
