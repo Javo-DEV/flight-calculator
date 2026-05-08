@@ -343,3 +343,188 @@ def calculate_rule_of_thumb_tod(altitude_loss: float) -> float:
         Distance to start descent in nautical miles
     """
     return altitude_loss / 300.0
+
+
+def calculate_toc_by_rate(
+    current_altitude: float,
+    target_altitude: float,
+    climb_rate: float,
+    ground_speed: float
+) -> Dict[str, float]:
+    """
+    Calculate Top of Climb (TOC) parameters given a known climb rate.
+    
+    Args:
+        current_altitude: Current altitude in feet
+        target_altitude: Target altitude in feet
+        climb_rate: Climb rate in feet per minute
+        ground_speed: Ground speed during climb in knots
+    
+    Returns:
+        Dictionary containing:
+        - altitude_gain: Altitude to gain (feet)
+        - climb_time: Time to reach target altitude (minutes)
+        - climb_distance: Horizontal distance to TOC (NM)
+        - climb_angle: Average climb angle (degrees)
+        - is_realistic: Whether climb rate is realistic for GA aircraft
+    
+    Formula:
+        Time = Altitude Gain / Climb Rate
+        Distance = Ground Speed × Time
+        Climb Angle = arctan(Climb Rate / Ground Speed in ft/min)
+    """
+    altitude_gain = target_altitude - current_altitude
+    
+    if altitude_gain <= 0:
+        return {
+            "altitude_gain": 0,
+            "climb_time": 0,
+            "climb_distance": 0,
+            "climb_angle": 0,
+            "is_realistic": True
+        }
+    
+    if climb_rate <= 0:
+        return {
+            "altitude_gain": altitude_gain,
+            "climb_time": float('inf'),
+            "climb_distance": float('inf'),
+            "climb_angle": 0,
+            "is_realistic": False
+        }
+    
+    # Calculate climb time in minutes
+    climb_time = altitude_gain / climb_rate
+    
+    # Calculate distance in nautical miles
+    climb_distance = (ground_speed * climb_time) / 60  # Convert minutes to hours
+    
+    # Calculate climb angle
+    # Convert ground speed from knots to feet per minute: kts × 101.269
+    gs_fpm = ground_speed * 101.269
+    climb_angle = math.degrees(math.atan(climb_rate / gs_fpm))
+    
+    # Check if realistic (typical GA: 500-700 fpm, high-performance: up to 1500 fpm)
+    is_realistic = climb_rate <= 3000  # Jets can do up to 3000 fpm
+    
+    return {
+        "altitude_gain": altitude_gain,
+        "climb_time": climb_time,
+        "climb_distance": climb_distance,
+        "climb_angle": climb_angle,
+        "is_realistic": is_realistic
+    }
+
+
+def calculate_toc_by_time(
+    current_altitude: float,
+    target_altitude: float,
+    available_time: float,
+    ground_speed: float
+) -> Dict[str, float]:
+    """
+    Calculate Top of Climb (TOC) parameters given available time.
+    
+    This calculates the required climb rate to reach target altitude
+    within the specified time.
+    
+    Args:
+        current_altitude: Current altitude in feet
+        target_altitude: Target altitude in feet
+        available_time: Available time for climb in minutes
+        ground_speed: Ground speed during climb in knots
+    
+    Returns:
+        Dictionary containing:
+        - altitude_gain: Altitude to gain (feet)
+        - required_climb_rate: Required climb rate (ft/min)
+        - climb_distance: Horizontal distance to TOC (NM)
+        - climb_angle: Average climb angle (degrees)
+        - is_realistic: Whether required climb rate is realistic
+        - aircraft_category: Suggested aircraft category based on climb rate
+    
+    Aircraft Categories by Climb Rate:
+        - Light GA (Cessna 172): 500-700 ft/min
+        - High-Performance Single: 1000-1500 ft/min
+        - Light Twins/Turboprops: 1500-2000 ft/min
+        - Light Jets: 2000-3000 ft/min
+        - Airliners: 1500-2500 ft/min (varies with weight)
+    """
+    altitude_gain = target_altitude - current_altitude
+    
+    if altitude_gain <= 0:
+        return {
+            "altitude_gain": 0,
+            "required_climb_rate": 0,
+            "climb_distance": 0,
+            "climb_angle": 0,
+            "is_realistic": True,
+            "aircraft_category": "N/A"
+        }
+    
+    if available_time <= 0:
+        return {
+            "altitude_gain": altitude_gain,
+            "required_climb_rate": float('inf'),
+            "climb_distance": 0,
+            "climb_angle": 90,
+            "is_realistic": False,
+            "aircraft_category": "Rocket"
+        }
+    
+    # Calculate required climb rate
+    required_climb_rate = altitude_gain / available_time
+    
+    # Calculate distance
+    climb_distance = (ground_speed * available_time) / 60
+    
+    # Calculate climb angle
+    gs_fpm = ground_speed * 101.269
+    climb_angle = math.degrees(math.atan(required_climb_rate / gs_fpm))
+    
+    # Determine aircraft category and realism
+    if required_climb_rate <= 700:
+        aircraft_category = "Light GA (Cessna, Piper)"
+        is_realistic = True
+    elif required_climb_rate <= 1500:
+        aircraft_category = "High-Performance Single"
+        is_realistic = True
+    elif required_climb_rate <= 2000:
+        aircraft_category = "Light Twin/Turboprop"
+        is_realistic = True
+    elif required_climb_rate <= 3000:
+        aircraft_category = "Light Jet/Airliner"
+        is_realistic = True
+    else:
+        aircraft_category = "Military/Unrealistic"
+        is_realistic = False
+    
+    return {
+        "altitude_gain": altitude_gain,
+        "required_climb_rate": required_climb_rate,
+        "climb_distance": climb_distance,
+        "climb_angle": climb_angle,
+        "is_realistic": is_realistic,
+        "aircraft_category": aircraft_category
+    }
+
+
+def calculate_rule_of_thumb_toc(altitude_gain: float, climb_rate: float = 500) -> float:
+    """
+    Quick rule of thumb for Top of Climb calculation.
+    
+    Rule: For typical GA climb rate of 500 ft/min at 100 kts,
+    distance ≈ altitude_gain / 300 (similar to TOD)
+    
+    Args:
+        altitude_gain: Altitude to gain in feet
+        climb_rate: Expected climb rate in ft/min (default: 500)
+    
+    Returns:
+        Approximate distance to TOC in nautical miles
+    """
+    # Rule: at 500 fpm and ~100 kts GS, distance ≈ alt_gain / 300
+    # More precise: time = alt_gain / climb_rate, dist = GS × time
+    # Assuming ~100 kts GS: dist = 100 × (alt_gain / climb_rate) / 60
+    # For 500 fpm: dist ≈ alt_gain / 300
+    return altitude_gain / 300.0

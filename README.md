@@ -9,6 +9,7 @@ Diese Anwendung bietet verschiedene Berechnungstools für präzise Flugplanung u
 ### ✨ Features
 
 - **📉 Top of Descent (TOD) Calculator** - Berechnet den idealen Punkt zum Einleiten des Sinkflugs
+- **📈 Top of Climb (TOC) Calculator** - Berechnet Steigflug-Parameter mit zwei Modi und Visualisierung
 - **🌬️ Wind Correction Angle** - Ermittelt Windkorrektur und Ground Speed
 - **🧭 Course Converter** - Konvertiert zwischen True und Magnetic Course (TVMDC)
 - **📊 Ground Speed Calculator** - Schnelle Geschwindigkeitsberechnung bei bekanntem Heading
@@ -73,6 +74,15 @@ Berechnet, wann Sie den Sinkflug einleiten müssen:
 - Eingabe: Aktuelle Höhe, Zielhöhe, Sinkwinkel (Standard: 3°), Ground Speed
 - Ausgabe: Distanz bis TOD, Sinkrate, Sinkzeit
 - **Faustregel:** Höhenverlust (ft) ÷ 300 = Distanz (NM)
+
+#### Top of Climb (TOC)
+Berechnet, wann Sie die Zielflughöhe erreichen:
+- **Modus 1 (Steigrate bekannt):** Zeit, Distanz und Steigwinkel berechnen
+- **Modus 2 (Zeit bekannt):** Benötigte Steigrate für gegebene Zeit berechnen
+- Eingabe: Aktuelle Höhe, Zielhöhe, Steigrate ODER Zeit, Ground Speed
+- Ausgabe: Zeit/Distanz bis TOC, Steigwinkel, Flugzeug-Kategorie-Empfehlung
+- Inkl. **Steigflug-Profil Visualisierung**
+- **Faustregel:** Bei 500 ft/min dauert Climb 1 Minute pro 500 ft
 
 #### Wind Correction Angle
 Berechnet Kurskorrektur bei Wind:

@@ -30,10 +30,13 @@ sys.path.append(str(Path(__file__).parent / "src"))
 # Import aviation calculation functions from our calculations module
 from src.calculations import (
     calculate_descent_rate,      # Calculate Top of Descent (TOD) and sink rate
+    calculate_toc_by_rate,        # Calculate Top of Climb by climb rate
+    calculate_toc_by_time,        # Calculate Top of Climb by available time
     calculate_wind_correction,    # Calculate Wind Correction Angle (WCA)
     convert_course,               # Convert between True and Magnetic course
     calculate_ground_speed,       # Calculate ground speed from TAS and wind
     calculate_rule_of_thumb_tod,  # Quick TOD rule (altitude/300)
+    calculate_rule_of_thumb_toc,  # Quick TOC rule (altitude/300)
     calculate_time_and_fuel       # Calculate flight time and fuel consumption
 )
 
@@ -124,6 +127,7 @@ def main():
         [
             "🏠 Home",                      # Landing page with information
             "📉 Top of Descent (TOD)",      # TOD/descent rate calculator
+            "📈 Top of Climb (TOC)",        # TOC/climb rate calculator
             "🌬️ Wind Correction Angle",   # WCA and ground speed calculator
             "🧭 Course Converter",         # True/Magnetic course conversion
             "📊 Ground Speed"              # Ground speed calculator
@@ -152,6 +156,8 @@ def main():
         show_home()
     elif calculator == "📉 Top of Descent (TOD)":
         show_tod_calculator()
+    elif calculator == "📈 Top of Climb (TOC)":
+        show_toc_calculator()
     elif calculator == "🌬️ Wind Correction Angle":
         show_wind_correction_calculator()
     elif calculator == "🧭 Course Converter":
@@ -188,6 +194,14 @@ def show_home():
         Zielhöhe zu erreichen. Inkl. Sinkrate und Flugzeit.
         
         **Ideal für:** ILS-Anflüge, Abstiegsplanung
+        """)
+        
+        st.subheader("📈 Top of Climb (TOC)")
+        st.write("""
+        Berechnet den Punkt, an dem Sie die Zielflughöhe erreichen. Zwei Modi: 
+        Berechnung nach Steigrate oder verfügbarer Zeit. Inkl. Steigprofil-Visualisierung.
+        
+        **Ideal für:** Steigflug-Planung, Performance-Checks
         """)
         
         st.subheader("🧭 Course Converter")
@@ -582,6 +596,363 @@ def show_tod_calculator():
                         - Zeit: {result['distance_to_tod']:.2f} NM / {ground_speed} kts = {result['descent_time']:.2f} min
                         - Sinkrate: {result['altitude_loss']:,.0f} ft / {result['descent_time']:.2f} min = {result['descent_rate']:.0f} ft/min
                         """)
+
+
+# ============================================================================
+# TOP OF CLIMB (TOC) CALCULATOR UI
+# ============================================================================
+
+def show_toc_calculator():
+    """
+    Display the Top of Climb (TOC) calculator interface.
+    
+    This calculator helps pilots determine when to level off during climb.
+    Two calculation modes:
+    1. Known climb rate: Calculate time and distance to reach target altitude
+    2. Known time: Calculate required climb rate to reach altitude in given time
+    
+    Features:
+    - Climb time calculation
+    - Climb distance calculation  
+    - Climb angle calculation
+    - Aircraft performance warnings
+    - Visual climb profile
+    """
+    # Header section with title and description
+    st.header("📈 Top of Climb (TOC) Calculator")
+    st.write("Berechnet den Punkt, an dem Sie die Zielflughöhe erreichen werden.")
+    
+    # Create two-column layout: Input (left) and Results (right)
+    col1, col2 = st.columns([1, 1])
+    
+    # ========================================================================
+    # LEFT COLUMN: INPUT FIELDS
+    # ========================================================================
+    with col1:
+        st.subheader("🔧 Eingabe")
+        
+        # Altitude inputs - current and target altitude in feet
+        st.write("**📍 Höhen**")
+        current_alt = st.number_input(
+            "Current Altitude (ft)",
+            min_value=0,
+            max_value=50000,
+            value=2000,
+            step=100,
+            help="Ihre aktuelle Flughöhe in Fuß"
+        )
+        
+        target_alt = st.number_input(
+            "Target Altitude (ft)", 
+            min_value=0,
+            max_value=50000,
+            value=10000,
+            step=100,
+            help="Gewünschte Zielflughöhe in Fuß"
+        )
+        
+        st.markdown("---")
+        
+        # Calculation mode selection - user chooses between known rate or known time
+        st.write("**⚙️ Berechnungsmodus**")
+        calc_mode = st.radio(
+            "Wählen Sie den Berechnungsmodus:",
+            ["Steigrate bekannt", "Zeit bekannt"],
+            help="Wählen Sie, ob Sie die Steigrate kennen oder die verfügbare Zeit"
+        )
+        
+        st.markdown("---")
+        
+        # Mode-specific inputs
+        if calc_mode == "Steigrate bekannt":
+            # MODE 1: Known climb rate
+            st.write("**📈 Steigrate**")
+            climb_rate = st.number_input(
+                "Climb Rate (ft/min)",
+                min_value=100,
+                max_value=5000,
+                value=500,
+                step=50,
+                help="Typische Werte: GA 500-700, High-Performance 1000-1500, Jets 2000-3000"
+            )
+            
+            # Display performance reference
+            st.info(
+                "**Typische Steigraten:**\n"
+                "- Light GA: 500-700 ft/min\n"
+                "- High-Performance: 1000-1500 ft/min\n"  
+                "- Light Jets: 2000-3000 ft/min"
+            )
+        else:
+            # MODE 2: Known time
+            st.write("**⏱️ Verfügbare Zeit**")
+            available_time = st.number_input(
+                "Available Time (min)",
+                min_value=1.0,
+                max_value=60.0,
+                value=10.0,
+                step=0.5,
+                help="Zeit, die für den Steigflug zur Verfügung steht"
+            )
+        
+        st.markdown("---")
+        
+        # Ground speed input - used for distance calculation
+        st.write("**✈️ Flugdaten**")
+        ground_speed = st.number_input(
+            "Ground Speed (kts)",
+            min_value=50,
+            max_value=500,
+            value=120,
+            step=5,
+            help="Geschwindigkeit über Grund während des Steigflugs"
+        )
+        
+        # Calculate button - triggers the calculation
+        calculate = st.button("🧮 Berechnen", type="primary", use_container_width=True)
+    
+    # ========================================================================
+    # RIGHT COLUMN: RESULTS DISPLAY
+    # ========================================================================
+    with col2:
+        st.subheader("📊 Ergebnisse")
+        
+        # Only show results after button click
+        if calculate:
+            # Validate input: target must be higher than current altitude
+            if target_alt <= current_alt:
+                st.error("❌ Zielhöhe muss höher als aktuelle Höhe sein!")
+                return
+            
+            # Perform calculation based on selected mode
+            if calc_mode == "Steigrate bekannt":
+                # MODE 1: Calculate by climb rate
+                result = calculate_toc_by_rate(
+                    current_alt, target_alt, climb_rate, ground_speed
+                )
+                
+                # Display main metrics in two sub-columns
+                col_a, col_b = st.columns(2)
+                
+                with col_a:
+                    # Time to reach TOC
+                    st.metric(
+                        "⏱️ Zeit bis TOC",
+                        f"{result['climb_time']:.1f} min",
+                        help="Benötigte Zeit zum Erreichen der Zielhöhe"
+                    )
+                    
+                    # Climb angle
+                    st.metric(
+                        "📐 Steigwinkel", 
+                        f"{result['climb_angle']:.2f}°",
+                        help="Durchschnittlicher Steigwinkel"
+                    )
+                
+                with col_b:
+                    # Distance to TOC
+                    st.metric(
+                        "📏 Distanz bis TOC",
+                        f"{result['climb_distance']:.1f} NM",
+                        help="Horizontale Distanz bis zum Erreichen der Zielhöhe"
+                    )
+                    
+                    # Altitude gain
+                    st.metric(
+                        "📈 Höhengewinn",
+                        f"{result['altitude_gain']:,.0f} ft",
+                        help="Zu gewinnende Höhe"
+                    )
+                
+                # Performance warning if climb rate is unrealistic
+                if not result['is_realistic']:
+                    st.warning(
+                        "⚠️ **Achtung:** Diese Steigrate (> 3000 ft/min) ist unrealistisch "
+                        "für die meisten zivilen Luftfahrzeuge!"
+                    )
+                
+                # Rule of thumb calculation
+                rule_distance = calculate_rule_of_thumb_toc(result['altitude_gain'], climb_rate)
+                
+                st.info(
+                    f"💡 **Faustregel:** Bei {climb_rate} ft/min Steigrate dauert der Climb "
+                    f"ca. {result['climb_time']:.0f} Minuten für {result['altitude_gain']:,.0f} ft. "
+                    f"Distanz ≈ {rule_distance:.0f} NM"
+                )
+                
+            else:
+                # MODE 2: Calculate by available time
+                result = calculate_toc_by_time(
+                    current_alt, target_alt, available_time, ground_speed
+                )
+                
+                # Display main metrics in two sub-columns  
+                col_a, col_b = st.columns(2)
+                
+                with col_a:
+                    # Required climb rate
+                    st.metric(
+                        "📈 Benötigte Steigrate",
+                        f"{result['required_climb_rate']:.0f} ft/min",
+                        help="Erforderliche Steigrate zum Erreichen der Zielhöhe in der gegebenen Zeit"
+                    )
+                    
+                    # Climb angle
+                    st.metric(
+                        "📐 Steigwinkel",
+                        f"{result['climb_angle']:.2f}°",
+                        help="Durchschnittlicher Steigwinkel"
+                    )
+                
+                with col_b:
+                    # Distance to TOC
+                    st.metric(
+                        "📏 Distanz bis TOC",
+                        f"{result['climb_distance']:.1f} NM",
+                        help="Horizontale Distanz bis zum Erreichen der Zielhöhe"
+                    )
+                    
+                    # Altitude gain
+                    st.metric(
+                        "📈 Höhengewinn",
+                        f"{result['altitude_gain']:,.0f} ft",
+                        help="Zu gewinnende Höhe"
+                    )
+                
+                # Aircraft category suggestion
+                if result['is_realistic']:
+                    st.success(
+                        f"✅ **Flugzeug-Kategorie:** {result['aircraft_category']}\n\n"
+                        f"Diese Steigrate ist realistisch für die angegebene Flugzeugkategorie."
+                    )
+                else:
+                    st.error(
+                        f"❌ **Warnung:** Die benötigte Steigrate von "
+                        f"{result['required_climb_rate']:.0f} ft/min ist unrealistisch!\n\n"
+                        f"Vorgeschlagene Kategorie: {result['aircraft_category']}\n\n"
+                        f"Erhöhen Sie die verfügbare Zeit oder reduzieren Sie die Zielhöhe."
+                    )
+            
+            # ================================================================
+            # DETAILED EXPLANATION (EXPANDABLE)
+            # ================================================================
+            with st.expander("ℹ️ Detaillierte Erklärung"):
+                if calc_mode == "Steigrate bekannt":
+                    st.write(f"""
+                    **Berechnung (Steigrate bekannt):**
+                    
+                    - Höhengewinn: {target_alt:,.0f} ft - {current_alt:,.0f} ft = {result['altitude_gain']:,.0f} ft
+                    - Zeit: {result['altitude_gain']:,.0f} ft ÷ {climb_rate} ft/min = {result['climb_time']:.2f} min
+                    - Distanz: {ground_speed} kts × {result['climb_time']:.2f} min ÷ 60 = {result['climb_distance']:.2f} NM
+                    - Steigwinkel: arctan({climb_rate} / ({ground_speed} × 101.269)) = {result['climb_angle']:.2f}°
+                    
+                    **Hinweise:**
+                    - Steigraten sind abhängig vom Flugzeugtyp und Gewicht
+                    - In großer Höhe nimmt die Steigrate ab (geringere Luftdichte)
+                    - Wind beeinflusst die Ground Speed und damit die Distanz
+                    """)
+                else:
+                    st.write(f"""
+                    **Berechnung (Zeit bekannt):**
+                    
+                    - Höhengewinn: {target_alt:,.0f} ft - {current_alt:,.0f} ft = {result['altitude_gain']:,.0f} ft
+                    - Benötigte Steigrate: {result['altitude_gain']:,.0f} ft ÷ {available_time} min = {result['required_climb_rate']:.0f} ft/min
+                    - Distanz: {ground_speed} kts × {available_time} min ÷ 60 = {result['climb_distance']:.2f} NM
+                    - Steigwinkel: arctan({result['required_climb_rate']:.0f} / ({ground_speed} × 101.269)) = {result['climb_angle']:.2f}°
+                    
+                    **Flugzeug-Kategorien nach Steigrate:**
+                    - Light GA (Cessna, Piper): 500-700 ft/min
+                    - High-Performance Single: 1000-1500 ft/min
+                    - Light Twin/Turboprop: 1500-2000 ft/min
+                    - Light Jet/Airliner: 2000-3000 ft/min
+                    - Military: > 3000 ft/min
+                    """)
+            
+            # ================================================================
+            # CLIMB PROFILE VISUALIZATION
+            # ================================================================
+            st.markdown("---")
+            st.subheader("🎨 Steigflug-Profil")
+            
+            # Create matplotlib figure for climb profile
+            fig, ax = plt.subplots(figsize=(10, 6))
+            
+            # Get distance from appropriate result dict
+            if calc_mode == "Steigrate bekannt":
+                distance = result['climb_distance']
+                angle = result['climb_angle']
+            else:
+                distance = result['climb_distance']
+                angle = result['climb_angle']
+            
+            # Create climb profile line (from current to target altitude)
+            x_profile = [0, distance]
+            y_profile = [current_alt, target_alt]
+            
+            # Plot climb profile
+            ax.plot(x_profile, y_profile, 'b-', linewidth=3, label='Steigflug-Profil')
+            
+            # Mark start and end points
+            ax.plot(0, current_alt, 'go', markersize=12, label='Start', zorder=5)
+            ax.plot(distance, target_alt, 'ro', markersize=12, label='TOC (Top of Climb)', zorder=5)
+            
+            # Add altitude labels
+            ax.text(0, current_alt - 500, f'{current_alt:,.0f} ft', 
+                   ha='center', va='top', fontsize=10, fontweight='bold')
+            ax.text(distance, target_alt + 500, f'{target_alt:,.0f} ft',
+                   ha='center', va='bottom', fontsize=10, fontweight='bold')
+            
+            # Add distance label
+            ax.text(distance/2, current_alt - 1000, f'{distance:.1f} NM',
+                   ha='center', va='top', fontsize=11, bbox=dict(boxstyle='round', 
+                   facecolor='wheat', alpha=0.8))
+            
+            # Add climb angle annotation
+            # Draw angle arc
+            from matplotlib.patches import Arc
+            arc_radius = distance * 0.15
+            arc = Arc((0, current_alt), arc_radius*2, arc_radius*2, 
+                     angle=0, theta1=0, theta2=angle, color='red', linewidth=2)
+            ax.add_patch(arc)
+            
+            # Angle label
+            ax.text(arc_radius * 0.7, current_alt + arc_radius * 0.3, 
+                   f'{angle:.1f}°', color='red', fontsize=10, fontweight='bold')
+            
+            # Add grid and labels
+            ax.grid(True, alpha=0.3, linestyle='--')
+            ax.set_xlabel('Distanz (NM)', fontsize=12, fontweight='bold')
+            ax.set_ylabel('Höhe (ft)', fontsize=12, fontweight='bold')
+            ax.set_title(f'Steigflug-Profil: {current_alt:,.0f} ft → {target_alt:,.0f} ft', 
+                        fontsize=14, fontweight='bold')
+            
+            # Set axis limits with some padding
+            ax.set_xlim(-distance*0.1, distance*1.2)
+            ax.set_ylim(current_alt - result['altitude_gain']*0.2, 
+                       target_alt + result['altitude_gain']*0.2)
+            
+            # Add legend
+            ax.legend(loc='upper left', fontsize=10)
+            
+            # Make layout tight
+            plt.tight_layout()
+            
+            # Display plot in Streamlit
+            st.pyplot(fig)
+            
+            # Add info box below visualization
+            if calc_mode == "Steigrate bekannt":
+                st.info(
+                    f"📊 **Profil-Informationen:** Bei einer Steigrate von {climb_rate} ft/min "
+                    f"und {ground_speed} kts Ground Speed benötigen Sie {result['climb_time']:.1f} Minuten "
+                    f"und {distance:.1f} NM horizontale Distanz, um {result['altitude_gain']:,.0f} ft zu steigen."
+                )
+            else:
+                st.info(
+                    f"📊 **Profil-Informationen:** Um in {available_time} Minuten "
+                    f"{result['altitude_gain']:,.0f} ft zu steigen, benötigen Sie eine Steigrate von "
+                    f"{result['required_climb_rate']:.0f} ft/min. Die horizontale Distanz beträgt {distance:.1f} NM."
+                )
 
 
 # ============================================================================
