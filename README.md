@@ -262,7 +262,7 @@ flight_calculator/
 │   └── aircraft_data.py   # Aircraft Database für W&B
 ├── tests/
 │   ├── __init__.py
-│   └── test_calculations.py  # Unit Tests (78 Tests)
+│   └── test_calculations.py  # Unit Tests (80 Tests)
 ├── assets/                # Bilder/Ressourcen
 ├── requirements.txt       # Python-Dependencies
 ├── .gitignore
@@ -271,16 +271,17 @@ flight_calculator/
 
 ## 🧪 Testing
 
-Das Projekt verfügt über umfassende Unit Tests (**78 Tests**):
+Das Projekt verfügt über umfassende Unit Tests (**80 Tests**):
 
 **Test Coverage:**
 - TOD/TOC Calculations (19 Tests)
 - Wind Correction & Ground Speed (6 Tests)  
 - Unit Conversions (24 Tests)
-- E6B Flight Computer (18 Tests)
+- E6B Flight Computer (20 Tests)
   - True Airspeed
   - Density Altitude
   - Fuel Planning
+  - Endurance & Range (VFR/IFR Reserve)
   - Wind Components
 - Weight & Balance (12 Tests)
   - W&B Calculations (Cessna 172, Cessna 208)
