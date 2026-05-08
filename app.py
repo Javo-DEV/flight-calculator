@@ -2139,7 +2139,13 @@ def show_e6b_calculator():
             st.markdown("**📊 Ergebnis**")
             
             if mode == "Benötigten Treibstoff berechnen" and calc_fuel:
-                result = calculate_fuel_required(distance, ground_speed, fuel_flow, flight_rules)
+                reserve_time = 30 if flight_rules == "VFR" else 45
+                result = calculate_fuel_required(
+                    distance=distance,
+                    ground_speed=ground_speed,
+                    fuel_flow=fuel_flow,
+                    reserve_time=reserve_time
+                )
                 
                 st.success(f"**Benötigter Treibstoff: {result['total_fuel']:.1f} gal**")
                 
@@ -2148,7 +2154,7 @@ def show_e6b_calculator():
                     hours = int(result['flight_time'])
                     minutes = int((result['flight_time'] - hours) * 60)
                     st.metric("Flugzeit", f"{hours}h {minutes}min")
-                    st.metric("Trip Fuel", f"{result['trip_fuel']:.1f} gal")
+                    st.metric("Trip Fuel", f"{result['fuel_required']:.1f} gal")
                 
                 with col_b:
                     st.metric("Reserve", f"{result['reserve_fuel']:.1f} gal")
@@ -2164,14 +2170,13 @@ def show_e6b_calculator():
                     
                     **Ergebnis:**
                     - Flugzeit: {result['flight_time']:.2f} Stunden
-                    - Trip Fuel: {result['trip_fuel']:.1f} gal
+                    - Trip Fuel: {result['fuel_required']:.1f} gal
                     - Reserve ({result['reserve_time']} min): {result['reserve_fuel']:.1f} gal
                     - **Total: {result['total_fuel']:.1f} gal**
                     """)
             
             elif mode != "Benötigten Treibstoff berechnen" and calc_endurance:
-                result = calculate_endurance_and_range(
-                    available_fuel, ground_speed_end, fuel_flow_end, flight_rules_end
+                result = calculate_endurance_and_range(available_fuel, fuel_flow_end, ground_speed_end
                 )
                 
                 st.success(f"**Reichweite: {result['range']:.0f} NM**")
@@ -2184,7 +2189,7 @@ def show_e6b_calculator():
                     st.metric("Reichweite", f"{result['range']:.0f} NM")
                 
                 with col_b:
-                    st.metric("Usable Fuel", f"{result['usable_fuel']:.1f} gal")
+                    st.metric("Usable Fuel", f"{result['endurance_with_reserve'] * fuel_flow_end:.1f} gal")
                     st.metric("Reserve", f"{result['reserve_fuel']:.1f} gal")
                 
                 with st.expander("ℹ️ Details"):
@@ -2195,10 +2200,12 @@ def show_e6b_calculator():
                     - Fuel Flow: {fuel_flow_end:.1f} gal/h
                     
                     **Ergebnis:**
-                    - Usable: {result['usable_fuel']:.1f} gal
-                    - Reserve: {result['reserve_fuel']:.1f} gal ({result['reserve_time']} min)
-                    - Ausdauer: {result['endurance']:.2f} h
-                    - Reichweite: {result['range']:.0f} NM
+                    - Usable: {result['endurance_with_reserve'] * fuel_flow_end:.1f} gal
+                    - Reserve: {result['reserve_fuel']:.1f} gal (45 min)
+                    - Ausdauer (mit Reserve): {result['endurance_with_reserve']:.2f} h
+                    - Reichweite (mit Reserve): {result['range_with_reserve']:.0f} NM
+                    - Max. Ausdauer: {result['endurance']:.2f} h
+                    - Max. Reichweite: {result['range']:.0f} NM
                     """)
     
     # ========================================================================
