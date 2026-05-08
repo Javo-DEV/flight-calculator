@@ -719,3 +719,301 @@ def convert_fuel_volume(value: float, from_unit: str, to_unit: str) -> float:
         return value * conversion_map[key]
     else:
         raise ValueError(f"Cannot convert from {from_unit} to {to_unit}")
+
+
+# ============================================================================
+# E6B FLIGHT COMPUTER FUNCTIONS
+# ============================================================================
+
+def calculate_true_airspeed(
+    indicated_airspeed: float,
+    pressure_altitude: float,
+    temperature_c: float = None
+) -> Dict[str, float]:
+    """
+    Calculate True Airspeed (TAS) from Indicated Airspeed (IAS).
+    
+    Uses the standard 2% rule: TAS increases by approximately 2% per 1000 feet
+    of pressure altitude. For more accurate results, temperature can be provided.
+    
+    Args:
+        indicated_airspeed: IAS in knots
+        pressure_altitude: Pressure altitude in feet
+        temperature_c: Outside Air Temperature in Celsius (optional for more accuracy)
+    
+    Returns:
+        Dictionary containing:
+        - tas: True Airspeed in knots
+        - correction_percent: Percentage correction applied
+        - isa_deviation: Temperature deviation from ISA (if temp provided)
+    
+    Formula:
+        Simple: TAS = IAS * (1 + 0.02 * altitude / 1000)
+        With temp: TAS = IAS * sqrt(T_actual / T_standard)
+    """
+    from .constants import STD_TEMP_C, TEMPERATURE_LAPSE_RATE, TAS_CORRECTION_PERCENT_PER_1000FT
+    
+    # Simple method: 2% per 1000 feet
+    altitude_thousands = pressure_altitude / 1000
+    correction_percent = TAS_CORRECTION_PERCENT_PER_1000FT * altitude_thousands
+    tas_simple = indicated_airspeed * (1 + correction_percent / 100)
+    
+    result = {
+        "tas": tas_simple,
+        "correction_percent": correction_percent,
+        "isa_deviation": None
+    }
+    
+    # More accurate method if temperature is provided
+    if temperature_c is not None:
+        # Calculate ISA temperature at altitude
+        isa_temp_at_altitude = STD_TEMP_C - (TEMPERATURE_LAPSE_RATE * altitude_thousands)
+        isa_deviation = temperature_c - isa_temp_at_altitude
+        
+        # Convert to Kelvin for ratio calculation
+        temp_k = temperature_c + 273.15
+        isa_temp_k = isa_temp_at_altitude + 273.15
+        
+        # TAS correction based on temperature ratio
+        temp_correction = math.sqrt(temp_k / isa_temp_k)
+        tas_accurate = indicated_airspeed * temp_correction
+        
+        result["tas"] = tas_accurate
+        result["isa_deviation"] = isa_deviation
+        result["correction_percent"] = ((tas_accurate / indicated_airspeed) - 1) * 100
+    
+    return result
+
+
+def calculate_density_altitude(
+    pressure_altitude: float,
+    temperature_c: float,
+    altimeter_setting: float = 29.92
+) -> Dict[str, float]:
+    """
+    Calculate Density Altitude - critical for aircraft performance.
+    
+    Density altitude is the pressure altitude corrected for non-standard temperature.
+    High density altitude reduces aircraft performance (longer takeoff, reduced climb).
+    
+    Args:
+        pressure_altitude: Pressure altitude in feet (or field elevation if QNH = 29.92)
+        temperature_c: Outside Air Temperature in Celsius
+        altimeter_setting: Current altimeter setting in inches Hg (default: 29.92)
+    
+    Returns:
+        Dictionary containing:
+        - density_altitude: Density altitude in feet
+        - pressure_altitude: Calculated pressure altitude
+        - isa_deviation: Deviation from ISA temperature
+        - performance_impact: Text description of performance impact
+    
+    Formula:
+        Pressure Altitude = Field Elevation + (29.92 - Altimeter Setting) * 1000
+        Density Altitude = Pressure Altitude + (120 * (OAT - ISA Temp))
+    """
+    from .constants import STD_TEMP_C, TEMPERATURE_LAPSE_RATE, DENSITY_ALTITUDE_TEMP_CORRECTION, STD_PRESSURE_INHG
+    
+    # Calculate pressure altitude if altimeter setting is not standard
+    if altimeter_setting != STD_PRESSURE_INHG:
+        pressure_alt_correction = (STD_PRESSURE_INHG - altimeter_setting) * 1000
+        pressure_alt = pressure_altitude + pressure_alt_correction
+    else:
+        pressure_alt = pressure_altitude
+    
+    # Calculate ISA temperature at this pressure altitude
+    altitude_thousands = pressure_alt / 1000
+    isa_temp_at_altitude = STD_TEMP_C - (TEMPERATURE_LAPSE_RATE * altitude_thousands)
+    
+    # Temperature deviation from ISA
+    temp_deviation = temperature_c - isa_temp_at_altitude
+    
+    # Density altitude calculation
+    density_alt = pressure_alt + (DENSITY_ALTITUDE_TEMP_CORRECTION * temp_deviation)
+    
+    # Performance impact assessment
+    diff = density_alt - pressure_alt
+    if diff < 500:
+        impact = "Minimal impact on performance"
+    elif diff < 1500:
+        impact = "Noticeable performance reduction - exercise caution"
+    elif diff < 3000:
+        impact = "Significant performance reduction - careful planning required"
+    else:
+        impact = "CRITICAL: Severe performance degradation - consider alternatives"
+    
+    return {
+        "density_altitude": density_alt,
+        "pressure_altitude": pressure_alt,
+        "isa_deviation": temp_deviation,
+        "performance_impact": impact
+    }
+
+
+def calculate_fuel_required(
+    distance: float = None,
+    time_hours: float = None,
+    fuel_flow: float = None,
+    ground_speed: float = None,
+    include_reserve: bool = True,
+    reserve_time: float = 45
+) -> Dict[str, float]:
+    """
+    Calculate fuel requirements for a flight.
+    
+    Can calculate based on either distance or time. Includes reserve fuel
+    calculations based on regulatory requirements.
+    
+    Args:
+        distance: Distance in nautical miles (optional)
+        time_hours: Flight time in hours (optional)
+        fuel_flow: Fuel consumption in gallons per hour
+        ground_speed: Ground speed in knots (required if using distance)
+        include_reserve: Include reserve fuel in calculation (default: True)
+        reserve_time: Reserve time in minutes (default: 45 for IFR)
+    
+    Returns:
+        Dictionary containing:
+        - fuel_required: Fuel needed for flight (gallons)
+        - fuel_reserve: Reserve fuel (gallons)
+        - total_fuel: Total fuel including reserve (gallons)
+        - flight_time: Flight time in hours
+        - endurance: Total endurance with fuel (hours)
+    
+    Raises:
+        ValueError: If insufficient parameters provided
+    """
+    if fuel_flow is None or fuel_flow <= 0:
+        raise ValueError("Fuel flow must be provided and greater than 0")
+    
+    # Calculate flight time
+    if time_hours is not None:
+        flight_time = time_hours
+    elif distance is not None and ground_speed is not None and ground_speed > 0:
+        flight_time = distance / ground_speed
+    else:
+        raise ValueError("Must provide either time_hours, or distance with ground_speed")
+    
+    # Calculate fuel required for flight
+    fuel_required = flight_time * fuel_flow
+    
+    # Calculate reserve fuel
+    reserve_hours = reserve_time / 60
+    fuel_reserve = reserve_hours * fuel_flow if include_reserve else 0
+    
+    # Total fuel
+    total_fuel = fuel_required + fuel_reserve
+    
+    # Calculate endurance (how long can we fly with this fuel)
+    endurance = total_fuel / fuel_flow if fuel_flow > 0 else 0
+    
+    return {
+        "fuel_required": fuel_required,
+        "fuel_reserve": fuel_reserve,
+        "total_fuel": total_fuel,
+        "flight_time": flight_time,
+        "endurance": endurance,
+        "reserve_time": reserve_time
+    }
+
+
+def calculate_endurance_and_range(
+    fuel_available: float,
+    fuel_flow: float,
+    ground_speed: float
+) -> Dict[str, float]:
+    """
+    Calculate how long and how far you can fly with available fuel.
+    
+    Args:
+        fuel_available: Available fuel in gallons
+        fuel_flow: Fuel consumption in gallons per hour
+        ground_speed: Ground speed in knots
+    
+    Returns:
+        Dictionary containing:
+        - endurance: Maximum flight time in hours
+        - range: Maximum range in nautical miles
+        - endurance_with_reserve: Endurance minus 45-min IFR reserve
+        - range_with_reserve: Range minus 45-min IFR reserve
+    """
+    if fuel_flow <= 0:
+        raise ValueError("Fuel flow must be greater than 0")
+    
+    # Calculate endurance (hours)
+    endurance = fuel_available / fuel_flow
+    
+    # Calculate range (NM)
+    range_nm = endurance * ground_speed
+    
+    # Calculate with 45-minute reserve
+    reserve_fuel = (45 / 60) * fuel_flow
+    usable_fuel = max(0, fuel_available - reserve_fuel)
+    endurance_with_reserve = usable_fuel / fuel_flow
+    range_with_reserve = endurance_with_reserve * ground_speed
+    
+    return {
+        "endurance": endurance,
+        "range": range_nm,
+        "endurance_with_reserve": endurance_with_reserve,
+        "range_with_reserve": range_with_reserve,
+        "reserve_fuel": reserve_fuel
+    }
+
+
+def calculate_wind_components(
+    runway_heading: float,
+    wind_direction: float,
+    wind_speed: float
+) -> Dict[str, float]:
+    """
+    Calculate headwind/tailwind and crosswind components for a runway.
+    
+    Critical for determining takeoff/landing performance and runway selection.
+    
+    Args:
+        runway_heading: Runway magnetic heading in degrees (e.g., 270 for runway 27)
+        wind_direction: Wind FROM direction in degrees
+        wind_speed: Wind speed in knots
+    
+    Returns:
+        Dictionary containing:
+        - headwind_component: Headwind component in knots (+ = headwind, - = tailwind)
+        - crosswind_component: Crosswind component in knots (absolute value)
+        - crosswind_direction: 'left' or 'right' from pilot perspective
+        - angle_difference: Angle between runway and wind
+    
+    Formula:
+        Headwind = Wind Speed * cos(angle difference)
+        Crosswind = Wind Speed * sin(angle difference)
+    """
+    # Calculate angle between runway heading and wind direction
+    angle_diff = wind_direction - runway_heading
+    
+    # Normalize to -180 to +180
+    while angle_diff > 180:
+        angle_diff -= 360
+    while angle_diff < -180:
+        angle_diff += 360
+    
+    # Convert to radians
+    angle_rad = math.radians(angle_diff)
+    
+    # Calculate components
+    headwind = wind_speed * math.cos(angle_rad)
+    crosswind = abs(wind_speed * math.sin(angle_rad))
+    
+    # Determine crosswind direction
+    if angle_diff > 0:
+        crosswind_direction = "right"
+    elif angle_diff < 0:
+        crosswind_direction = "left"
+    else:
+        crosswind_direction = "none"
+    
+    return {
+        "headwind_component": headwind,
+        "crosswind_component": crosswind,
+        "crosswind_direction": crosswind_direction,
+        "angle_difference": abs(angle_diff)
+    }

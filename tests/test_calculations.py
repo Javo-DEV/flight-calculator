@@ -34,7 +34,13 @@ from src.calculations import (
     convert_altitude,
     convert_distance,
     convert_weight,
-    convert_fuel_volume
+    convert_fuel_volume,
+    # E6B Functions
+    calculate_true_airspeed,
+    calculate_density_altitude,
+    calculate_fuel_required,
+    calculate_endurance_and_range,
+    calculate_wind_components
 )
 
 
@@ -493,6 +499,237 @@ class TestFuelVolumeConversion:
         """Test that invalid units raise ValueError"""
         with pytest.raises(ValueError):
             convert_fuel_volume(100, 'liters', 'barrels')
+
+
+# ============================================================================
+# E6B FLIGHT COMPUTER TESTS
+# ============================================================================
+
+class TestTrueAirspeed:
+    """Test suite for True Airspeed calculations"""
+    
+    def test_basic_tas_calculation(self):
+        """Test basic TAS calculation with 2% rule"""
+        result = calculate_true_airspeed(
+            indicated_airspeed=120,
+            pressure_altitude=5000
+        )
+        
+        # At 5000 ft, expect ~10% increase (2% per 1000 ft)
+        assert result['tas'] == pytest.approx(132, rel=0.01)
+        assert result['correction_percent'] == pytest.approx(10.0, abs=0.1)
+        assert result['isa_deviation'] is None
+    
+    def test_tas_with_temperature(self):
+        """Test TAS calculation with temperature correction"""
+        result = calculate_true_airspeed(
+            indicated_airspeed=120,
+            pressure_altitude=5000,
+            temperature_c=15  # Warm day
+        )
+        
+        assert result['tas'] > 120  # Should be higher than IAS
+        assert result['isa_deviation'] is not None
+    
+    def test_tas_at_sea_level(self):
+        """Test TAS at sea level (should equal IAS)"""
+        result = calculate_true_airspeed(
+            indicated_airspeed=100,
+            pressure_altitude=0
+        )
+        
+        assert result['tas'] == pytest.approx(100, rel=0.01)
+        assert result['correction_percent'] == pytest.approx(0, abs=0.1)
+
+
+class TestDensityAltitude:
+    """Test suite for Density Altitude calculations"""
+    
+    def test_standard_conditions(self):
+        """Test density altitude at standard conditions"""
+        result = calculate_density_altitude(
+            pressure_altitude=0,
+            temperature_c=15,
+            altimeter_setting=29.92
+        )
+        
+        # At standard conditions, density altitude ≈ pressure altitude
+        assert result['density_altitude'] == pytest.approx(0, abs=100)
+        assert result['isa_deviation'] == pytest.approx(0, abs=0.5)
+    
+    def test_hot_day(self):
+        """Test density altitude on a hot day"""
+        result = calculate_density_altitude(
+            pressure_altitude=1000,
+            temperature_c=35,  # Hot day
+            altimeter_setting=29.92
+        )
+        
+        # Hot day means higher density altitude
+        assert result['density_altitude'] > result['pressure_altitude']
+        assert result['isa_deviation'] > 0
+    
+    def test_cold_day(self):
+        """Test density altitude on a cold day"""
+        result = calculate_density_altitude(
+            pressure_altitude=1000,
+            temperature_c=-10,  # Cold day
+            altimeter_setting=29.92
+        )
+        
+        # Cold day means lower density altitude
+        assert result['density_altitude'] < result['pressure_altitude']
+        assert result['isa_deviation'] < 0
+    
+    def test_high_pressure(self):
+        """Test density altitude with high pressure"""
+        result = calculate_density_altitude(
+            pressure_altitude=1000,
+            temperature_c=15,
+            altimeter_setting=30.50  # High pressure
+        )
+        
+        # High pressure lowers pressure altitude
+        assert result['pressure_altitude'] < 1000
+
+
+class TestFuelCalculations:
+    """Test suite for fuel planning calculations"""
+    
+    def test_fuel_required_by_distance(self):
+        """Test fuel required for a given distance"""
+        result = calculate_fuel_required(
+            distance=150,
+            fuel_flow=10,
+            ground_speed=120,
+            reserve_time=45
+        )
+        
+        # 150 NM at 120 kts = 1.25 hours = 12.5 gal
+        assert result['fuel_required'] == pytest.approx(12.5, rel=0.01)
+        # 45 min reserve = 0.75 hours = 7.5 gal
+        assert result['fuel_reserve'] == pytest.approx(7.5, rel=0.01)
+        # Total = 20 gal
+        assert result['total_fuel'] == pytest.approx(20.0, rel=0.01)
+    
+    def test_fuel_required_by_time(self):
+        """Test fuel required for a given time"""
+        result = calculate_fuel_required(
+            time_hours=2.0,
+            fuel_flow=12,
+            reserve_time=30
+        )
+        
+        # 2 hours at 12 gph = 24 gal
+        assert result['fuel_required'] == pytest.approx(24.0, rel=0.01)
+        # 30 min reserve = 6 gal
+        assert result['fuel_reserve'] == pytest.approx(6.0, rel=0.01)
+    
+    def test_fuel_without_reserve(self):
+        """Test fuel calculation without reserve"""
+        result = calculate_fuel_required(
+            time_hours=1.0,
+            fuel_flow=10,
+            include_reserve=False
+        )
+        
+        assert result['fuel_required'] == 10.0
+        assert result['fuel_reserve'] == 0.0
+        assert result['total_fuel'] == 10.0
+    
+    def test_invalid_parameters(self):
+        """Test error handling for invalid parameters"""
+        with pytest.raises(ValueError):
+            calculate_fuel_required(fuel_flow=10)  # No distance or time
+
+
+class TestEnduranceAndRange:
+    """Test suite for endurance and range calculations"""
+    
+    def test_basic_endurance_range(self):
+        """Test basic endurance and range calculation"""
+        result = calculate_endurance_and_range(
+            fuel_available=50,
+            fuel_flow=10,
+            ground_speed=120
+        )
+        
+        # 50 gal at 10 gph = 5 hours
+        assert result['endurance'] == pytest.approx(5.0, rel=0.01)
+        # 5 hours at 120 kts = 600 NM
+        assert result['range'] == pytest.approx(600, rel=0.01)
+    
+    def test_with_reserve(self):
+        """Test endurance and range with 45-min reserve"""
+        result = calculate_endurance_and_range(
+            fuel_available=50,
+            fuel_flow=10,
+            ground_speed=120
+        )
+        
+        # Reserve = 45/60 * 10 = 7.5 gal
+        assert result['reserve_fuel'] == pytest.approx(7.5, rel=0.01)
+        # Usable = 50 - 7.5 = 42.5 gal = 4.25 hours
+        assert result['endurance_with_reserve'] == pytest.approx(4.25, rel=0.01)
+        # Range = 4.25 * 120 = 510 NM
+        assert result['range_with_reserve'] == pytest.approx(510, rel=0.01)
+    
+    def test_zero_fuel_flow(self):
+        """Test error handling for zero fuel flow"""
+        with pytest.raises(ValueError):
+            calculate_endurance_and_range(50, 0, 120)
+
+
+class TestWindComponents:
+    """Test suite for runway wind component calculations"""
+    
+    def test_direct_headwind(self):
+        """Test direct headwind (wind aligned with runway)"""
+        result = calculate_wind_components(
+            runway_heading=270,  # Runway 27
+            wind_direction=270,  # Wind from west
+            wind_speed=20
+        )
+        
+        assert result['headwind_component'] == pytest.approx(20, rel=0.01)
+        assert result['crosswind_component'] == pytest.approx(0, abs=0.1)
+        assert result['angle_difference'] == pytest.approx(0, abs=0.1)
+    
+    def test_direct_tailwind(self):
+        """Test direct tailwind"""
+        result = calculate_wind_components(
+            runway_heading=270,  # Runway 27
+            wind_direction=90,   # Wind from east (tailwind)
+            wind_speed=15
+        )
+        
+        assert result['headwind_component'] == pytest.approx(-15, rel=0.01)
+        assert result['crosswind_component'] == pytest.approx(0, abs=0.1)
+    
+    def test_90_degree_crosswind(self):
+        """Test 90-degree crosswind (pure crosswind)"""
+        result = calculate_wind_components(
+            runway_heading=270,  # Runway 27
+            wind_direction=360,  # Wind from north
+            wind_speed=20
+        )
+        
+        assert result['headwind_component'] == pytest.approx(0, abs=0.1)
+        assert result['crosswind_component'] == pytest.approx(20, rel=0.01)
+        assert result['crosswind_direction'] in ['left', 'right']
+    
+    def test_45_degree_wind(self):
+        """Test wind at 45 degrees"""
+        result = calculate_wind_components(
+            runway_heading=270,  # Runway 27
+            wind_direction=315,  # Wind from NW (45 degrees)
+            wind_speed=20
+        )
+        
+        # At 45 degrees, headwind and crosswind are roughly equal
+        # Component ≈ 20 * cos(45°) ≈ 14.14
+        assert result['headwind_component'] == pytest.approx(14.14, rel=0.05)
+        assert result['crosswind_component'] == pytest.approx(14.14, rel=0.05)
 
 
 # ============================================================================

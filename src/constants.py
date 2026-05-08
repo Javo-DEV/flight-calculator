@@ -71,3 +71,31 @@ DEFAULT_CLIMB_RATE = 700  # feet per minute
 # Wind Calculation Limits
 MAX_WIND_SPEED = 200  # knots (sanity check)
 MAX_CROSSWIND_COMPONENT = 30  # knots (typical GA aircraft limit)
+
+# E6B Flight Computer Constants
+# ============================================================================
+
+# Standard Atmosphere Constants (for TAS and Density Altitude calculations)
+STD_PRESSURE_INHG = 29.92  # Standard pressure at sea level in inches Hg
+STD_TEMP_C = 15.0  # Standard temperature at sea level in Celsius
+STD_TEMP_F = 59.0  # Standard temperature at sea level in Fahrenheit
+
+# Temperature conversion
+CELSIUS_TO_FAHRENHEIT = lambda c: (c * 9/5) + 32
+FAHRENHEIT_TO_CELSIUS = lambda f: (f - 32) * 5/9
+
+# Pressure Altitude Constants
+PRESSURE_ALTITUDE_FACTOR = 1000  # feet per inch Hg difference from 29.92
+FT_PER_HPA = 30  # Approximate feet per hectopascal
+
+# TAS Calculation
+# TAS increases approximately 2% per 1000 feet
+TAS_CORRECTION_PERCENT_PER_1000FT = 2.0
+
+# Density Altitude Constants  
+DENSITY_ALTITUDE_TEMP_CORRECTION = 120  # feet per degree C above ISA
+
+# Fuel Constants
+MIN_FUEL_RESERVE_TIME = 30  # minutes (VFR day minimum)
+MIN_FUEL_RESERVE_TIME_NIGHT = 45  # minutes (VFR night minimum)
+IFR_FUEL_RESERVE_TIME = 45  # minutes (IFR minimum)

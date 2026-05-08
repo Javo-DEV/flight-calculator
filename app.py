@@ -41,7 +41,13 @@ from src.calculations import (
     convert_altitude,             # Convert altitude between feet, meters, km
     convert_distance,             # Convert distance between NM, km, miles
     convert_weight,               # Convert weight between kg, lbs, tons
-    convert_fuel_volume           # Convert fuel volume between liters, gallons
+    convert_fuel_volume,          # Convert fuel volume between liters, gallons
+    # E6B Flight Computer Functions
+    calculate_true_airspeed,      # Calculate TAS from IAS and altitude
+    calculate_density_altitude,   # Calculate density altitude
+    calculate_fuel_required,      # Calculate fuel requirements
+    calculate_endurance_and_range,  # Calculate endurance and range
+    calculate_wind_components     # Calculate headwind/crosswind components
 )
 
 # Import aviation constants and default values
@@ -135,7 +141,11 @@ def main():
             "🌬️ Wind Correction Angle",   # WCA and ground speed calculator
             "🧭 Course Converter",         # True/Magnetic course conversion
             "📊 Ground Speed",             # Ground speed calculator
-            "🔄 Unit Converter"            # Unit conversion tool
+            "🔄 Unit Converter",           # Unit conversion tool
+            "✈️ True Airspeed (TAS)",     # TAS calculator (E6B)
+            "🌡️ Density Altitude",        # Density altitude calculator (E6B)
+            "⛽ Fuel Planner",             # Fuel calculations (E6B)
+            "🛬 Wind Components"           # Runway wind components (E6B)
         ]
     )
     
@@ -171,6 +181,14 @@ def main():
         show_ground_speed_calculator()
     elif calculator == "🔄 Unit Converter":
         show_unit_converter()
+    elif calculator == "✈️ True Airspeed (TAS)":
+        show_tas_calculator()
+    elif calculator == "🌡️ Density Altitude":
+        show_density_altitude_calculator()
+    elif calculator == "⛽ Fuel Planner":
+        show_fuel_planner()
+    elif calculator == "🛬 Wind Components":
+        show_wind_components_calculator()
 
 
 # ============================================================================
@@ -240,6 +258,26 @@ def show_home():
         Konvertiert zwischen verschiedenen Einheiten: Höhe, Distanz, Gewicht und Treibstoff.
         
         **Ideal für:** Umrechnung zwischen metrischen und Aviation-Einheiten
+        """)
+    
+    st.markdown("---")
+    st.subheader("🛩️ E6B Flight Computer")
+    st.write("**Klassische E6B-Rechner für Performance-Berechnungen:**")
+    
+    col3, col4 = st.columns(2)
+    
+    with col3:
+        st.write("""
+        **✈️ True Airspeed (TAS):** Berechnet TAS aus IAS und Druckhöhe
+        
+        **🌡️ Density Altitude:** Performance-kritische Berechnungen für Takeoff/Landing
+        """)
+    
+    with col4:
+        st.write("""
+        **⛽ Fuel Planner:** Treibstoffbedarf, Reichweite und Endurance
+        
+        **🛬 Wind Components:** Gegen-/Rückenwind und Seitenwind für Runway Selection
         """)
     
     st.markdown("---")
@@ -1800,6 +1838,587 @@ def show_unit_converter():
             - Boeing 737-800: ~26,000 L (~6,875 US gal)
             - Durchschnittlicher Verbrauch GA: 8-12 US gal/h (~30-45 L/h)
             """)
+
+
+# ============================================================================
+# E6B FLIGHT COMPUTER CALCULATORS
+# ============================================================================
+
+def show_tas_calculator():
+    """
+    Display the True Airspeed (TAS) Calculator interface.
+    
+    Calculates TAS from Indicated Airspeed using the 2% rule or 
+    more accurate temperature-based calculation.
+    """
+    st.header("✈️ True Airspeed (TAS) Calculator")
+    
+    st.write("""
+    Berechnet die **True Airspeed (TAS)** aus der angezeigten Geschwindigkeit (IAS).
+    TAS ist die tatsächliche Geschwindigkeit durch die Luftmasse und wird für alle 
+    Navigationsberechnungen benötigt.
+    """)
+    
+    # ========================================================================
+    # INPUT SECTION
+    # ========================================================================
+    
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        st.subheader("📥 Eingabe")
+        
+        ias = st.number_input(
+            "Indicated Airspeed (IAS):",
+            min_value=0,
+            max_value=500,
+            value=120,
+            step=5,
+            help="Angezeigte Geschwindigkeit im Cockpit (in Knoten)"
+        )
+        
+        pressure_alt = st.number_input(
+            "Pressure Altitude:",
+            min_value=0,
+            max_value=50000,
+            value=5000,
+            step=500,
+            help="Druckhöhe in Fuß (Altimeter auf 29.92 inHg gestellt)"
+        )
+        
+        use_temp = st.checkbox(
+            "Temperatur für genauere Berechnung verwenden",
+            value=False,
+            help="Aktivieren für präzisere TAS-Berechnung"
+        )
+        
+        temp_c = None
+        if use_temp:
+            temp_c = st.number_input(
+                "Outside Air Temperature (OAT):",
+                min_value=-60,
+                max_value=60,
+                value=15,
+                step=1,
+                help="Außentemperatur in Celsius"
+            )
+        
+        calculate_btn = st.button("🧮 Berechnen", key="tas_calc", type="primary")
+    
+    # ========================================================================
+    # RESULTS SECTION
+    # ========================================================================
+    
+    with col2:
+        st.subheader("📊 Ergebnis")
+        
+        if calculate_btn:
+            result = calculate_true_airspeed(ias, pressure_alt, temp_c)
+            
+            # Main result
+            st.success(f"**TAS: {result['tas']:.1f} kts**")
+            
+            # Details
+            st.markdown('<div class="result-box">', unsafe_allow_html=True)
+            
+            col_a, col_b = st.columns(2)
+            with col_a:
+                st.metric("IAS", f"{ias} kts")
+                st.metric("Korrektur", f"+{result['correction_percent']:.1f}%")
+            
+            with col_b:
+                st.metric("TAS", f"{result['tas']:.1f} kts")
+                if result['isa_deviation'] is not None:
+                    deviation_sign = "+" if result['isa_deviation'] > 0 else ""
+                    st.metric("ISA Deviation", f"{deviation_sign}{result['isa_deviation']:.1f}°C")
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            with st.expander("ℹ️ Erklärung"):
+                st.write(f"""
+                **Berechnung:**
+                
+                - IAS: {ias} kts
+                - Pressure Altitude: {pressure_alt:,.0f} ft
+                {f"- OAT: {temp_c}°C" if temp_c is not None else ""}
+                
+                **Faustregel:** TAS erhöht sich um ca. 2% pro 1000 Fuß Höhe.
+                
+                **Ergebnis:**
+                - TAS: {result['tas']:.1f} kts
+                - Korrektur: {result['correction_percent']:.1f}%
+                {f"- ISA Abweichung: {result['isa_deviation']:+.1f}°C" if result['isa_deviation'] is not None else ""}
+                
+                **Verwendung:** TAS wird für Navigation, Wind-Berechnungen und 
+                Flugplanung verwendet.
+                """)
+
+
+def show_density_altitude_calculator():
+    """
+    Display the Density Altitude Calculator interface.
+    
+    Calculates density altitude which is critical for aircraft performance.
+    """
+    st.header("🌡️ Density Altitude Calculator")
+    
+    st.write("""
+    Berechnet die **Density Altitude** - ein kritischer Wert für Aircraft Performance.
+    Hohe Density Altitude bedeutet dünnere Luft und schlechtere Performance 
+    (längere Startstr Ecke, geringere Steigleistung, längere Landestrecke).
+    """)
+    
+    # ========================================================================
+    # INPUT SECTION
+    # ========================================================================
+    
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        st.subheader("📥 Eingabe")
+        
+        field_elev = st.number_input(
+            "Field Elevation / Pressure Altitude:",
+            min_value=0,
+            max_value=15000,
+            value=1000,
+            step=100,
+            help="Flugplatzhöhe in Fuß"
+        )
+        
+        temp_c = st.number_input(
+            "Outside Air Temperature (OAT):",
+            min_value=-40,
+            max_value=50,
+            value=25,
+            step=1,
+            help="Außentemperatur in Celsius"
+        )
+        
+        qnh = st.number_input(
+            "Altimeter Setting (QNH):",
+            min_value=28.00,
+            max_value=31.50,
+            value=29.92,
+            step=0.01,
+            format="%.2f",
+            help="Barometrischer Druck in inches Hg (29.92 = Standard)"
+        )
+        
+        calculate_btn = st.button("🧮 Berechnen", key="da_calc", type="primary")
+    
+    # ========================================================================
+    # RESULTS SECTION
+    # ========================================================================
+    
+    with col2:
+        st.subheader("📊 Ergebnis")
+        
+        if calculate_btn:
+            result = calculate_density_altitude(field_elev, temp_c, qnh)
+            
+            # Color-code based on severity
+            da_diff = result['density_altitude'] - result['pressure_altitude']
+            if da_diff < 1000:
+                color = "green"
+            elif da_diff < 2500:
+                color = "orange"
+            else:
+                color = "red"
+            
+            # Main result
+            st.markdown(f"<h3 style='color:{color}'>Density Altitude: {result['density_altitude']:,.0f} ft</h3>", 
+                       unsafe_allow_html=True)
+            
+            # Details
+            st.markdown('<div class="result-box">', unsafe_allow_html=True)
+            
+            col_a, col_b = st.columns(2)
+            with col_a:
+                st.metric("Pressure Altitude", f"{result['pressure_altitude']:,.0f} ft")
+                st.metric("Temperature", f"{temp_c}°C")
+            
+            with col_b:
+                st.metric("Density Altitude", f"{result['density_altitude']:,.0f} ft")
+                deviation_sign = "+" if result['isa_deviation'] > 0 else ""
+                st.metric("ISA Deviation", f"{deviation_sign}{result['isa_deviation']:.1f}°C")
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            # Performance Impact
+            if da_diff >= 1000:
+                st.warning(f"⚠️ **{result['performance_impact']}**")
+            else:
+                st.info(f"✓ {result['performance_impact']}")
+            
+            with st.expander("ℹ️ Erklärung"):
+                st.write(f"""
+                **Berechnung:**
+                
+                - Field Elevation: {field_elev:,.0f} ft
+                - Temperature: {temp_c}°C
+                - QNH: {qnh:.2f} inHg
+                
+                **Ergebnisse:**
+                - Pressure Altitude: {result['pressure_altitude']:,.0f} ft
+                - Density Altitude: {result['density_altitude']:,.0f} ft
+                - Difference: {da_diff:+,.0f} ft
+                - ISA Deviation: {result['isa_deviation']:+.1f}°C
+                
+                **Performance Impact:**
+                {result['performance_impact']}
+                
+                **Wichtig:** Hohe Density Altitude erfordert:
+                - Längere Startstrecke
+                - Geringere Steigleistung
+                - Längere Landestrecke
+                - Höheren Fuel Flow
+                """)
+
+
+def show_fuel_planner():
+    """
+    Display the Fuel Planner interface.
+    
+    Calculates fuel requirements, endurance, and range.
+    """
+    st.header("⛽ Fuel Planner")
+    
+    st.write("""
+    Berechnet **Treibstoffbedarf**, **Reichweite** und **Endurance** für Ihre Flugplanung.
+    Inkludiert Reserve-Berechnungen nach VFR/IFR-Anforderungen.
+    """)
+    
+    # ========================================================================
+    # MODE SELECTION
+    # ========================================================================
+    
+    mode = st.radio(
+        "Berechnungsmodus:",
+        ["📍 Fuel Required (Distance-based)", "⏱️ Endurance & Range (Fuel-based)"],
+        horizontal=True
+    )
+    
+    st.markdown("---")
+    
+    # ========================================================================
+    # FUEL REQUIRED MODE
+    # ========================================================================
+    
+    if mode == "📍 Fuel Required (Distance-based)":
+        col1, col2 = st.columns([1, 1])
+        
+        with col1:
+            st.subheader("📥 Eingabe")
+            
+            distance = st.number_input(
+                "Distance:",
+                min_value=0.0,
+                max_value=3000.0,
+                value=150.0,
+                step=10.0,
+                help="Flugdistanz in Nautischen Meilen"
+            )
+            
+            ground_speed = st.number_input(
+                "Ground Speed:",
+                min_value=30,
+                max_value=600,
+                value=120,
+                step=5,
+                help="Ground Speed in Knoten"
+            )
+            
+            fuel_flow = st.number_input(
+                "Fuel Flow:",
+                min_value=1.0,
+                max_value=500.0,
+                value=10.0,
+                step=0.5,
+                help="Treibstoffverbrauch in Gallons/Stunde"
+            )
+            
+            reserve_time = st.selectbox(
+                "Reserve:",
+                [30, 45, 60],
+                index=1,
+                help="Reserve-Zeit in Minuten (45 = IFR Standard)"
+            )
+            
+            calculate_btn = st.button("🧮 Berechnen", key="fuel_req_calc", type="primary")
+        
+        with col2:
+            st.subheader("📊 Ergebnis")
+            
+            if calculate_btn:
+                try:
+                    result = calculate_fuel_required(
+                        distance=distance,
+                        fuel_flow=fuel_flow,
+                        ground_speed=ground_speed,
+                        reserve_time=reserve_time
+                    )
+                    
+                    # Main result
+                    st.success(f"**Total Fuel Required: {result['total_fuel']:.1f} gallons**")
+                    
+                    # Details
+                    st.markdown('<div class="result-box">', unsafe_allow_html=True)
+                    
+                    col_a, col_b = st.columns(2)
+                    with col_a:
+                        st.metric("Flight Fuel", f"{result['fuel_required']:.1f} gal")
+                        st.metric("Reserve Fuel", f"{result['fuel_reserve']:.1f} gal")
+                    
+                    with col_b:
+                        st.metric("Total Fuel", f"{result['total_fuel']:.1f} gal")
+                        st.metric("Flight Time", f"{result['flight_time']*60:.0f} min")
+                    
+                    st.markdown('</div>', unsafe_allow_html=True)
+                    
+                    with st.expander("ℹ️ Details"):
+                        st.write(f"""
+                        **Berechnung:**
+                        
+                        - Distanz: {distance} NM
+                        - Ground Speed: {ground_speed} kts
+                        - Fuel Flow: {fuel_flow} gal/h
+                        - Reserve: {reserve_time} min
+                        
+                        **Ergebnisse:**
+                        - Flugzeit: {result['flight_time']:.2f} h ({result['flight_time']*60:.0f} min)
+                        - Fuel für Flug: {result['fuel_required']:.1f} gal
+                        - Reserve: {result['fuel_reserve']:.1f} gal
+                        - **Total: {result['total_fuel']:.1f} gal**
+                        - Endurance (mit diesem Fuel): {result['endurance']:.2f} h
+                        """)
+                
+                except ValueError as e:
+                    st.error(f"Fehler: {e}")
+    
+    # ========================================================================
+    # ENDURANCE & RANGE MODE
+    # ========================================================================
+    
+    else:
+        col1, col2 = st.columns([1, 1])
+        
+        with col1:
+            st.subheader("📥 Eingabe")
+            
+            fuel_available = st.number_input(
+                "Available Fuel:",
+                min_value=0.0,
+                max_value=500.0,
+                value=50.0,
+                step=1.0,
+                help="Verfügbarer Treibstoff in Gallons"
+            )
+            
+            fuel_flow = st.number_input(
+                "Fuel Flow:",
+                min_value=1.0,
+                max_value=500.0,
+                value=10.0,
+                step=0.5,
+                help="Treibstoffverbrauch in Gallons/Stunde",
+                key="ff_endurance"
+            )
+            
+            ground_speed = st.number_input(
+                "Ground Speed:",
+                min_value=30,
+                max_value=600,
+                value=120,
+                step=5,
+                help="Ground Speed in Knoten",
+                key="gs_endurance"
+            )
+            
+            calculate_btn = st.button("🧮 Berechnen", key="endurance_calc", type="primary")
+        
+        with col2:
+            st.subheader("📊 Ergebnis")
+            
+            if calculate_btn:
+                try:
+                    result = calculate_endurance_and_range(fuel_available, fuel_flow, ground_speed)
+                    
+                    # Main results
+                    st.success(f"**Endurance: {result['endurance']:.2f} h ({result['endurance']*60:.0f} min)**")
+                    st.success(f"**Range: {result['range']:.0f} NM**")
+                    
+                    # Details with reserve
+                    st.markdown('<div class="result-box">', unsafe_allow_html=True)
+                    
+                    st.write("**Mit 45-min IFR Reserve:**")
+                    col_a, col_b = st.columns(2)
+                    with col_a:
+                        st.metric("Endurance", f"{result['endurance_with_reserve']:.2f} h")
+                        st.metric("Reserve Fuel", f"{result['reserve_fuel']:.1f} gal")
+                    
+                    with col_b:
+                        st.metric("Range", f"{result['range_with_reserve']:.0f} NM")
+                    
+                    st.markdown('</div>', unsafe_allow_html=True)
+                    
+                    with st.expander("ℹ️ Details"):
+                        st.write(f"""
+                        **Berechnung:**
+                        
+                        - Verfügbarer Fuel: {fuel_available} gal
+                        - Fuel Flow: {fuel_flow} gal/h
+                        - Ground Speed: {ground_speed} kts
+                        
+                        **Maximum (ohne Reserve):**
+                        - Endurance: {result['endurance']:.2f} h ({result['endurance']*60:.0f} min)
+                        - Range: {result['range']:.0f} NM
+                        
+                        **Mit 45-min Reserve:**
+                        - Reserve Fuel: {result['reserve_fuel']:.1f} gal
+                        - Usable Fuel: {fuel_available - result['reserve_fuel']:.1f} gal
+                        - Endurance: {result['endurance_with_reserve']:.2f} h
+                        - Range: {result['range_with_reserve']:.0f} NM
+                        """)
+                
+                except ValueError as e:
+                    st.error(f"Fehler: {e}")
+
+
+def show_wind_components_calculator():
+    """
+    Display the Wind Components Calculator interface.
+    
+    Calculates headwind/tailwind and crosswind components for runway operations.
+    """
+    st.header("🛬 Wind Components Calculator")
+    
+    st.write("""
+    Berechnet **Headwind/Tailwind** und **Crosswind** Komponenten für eine Runway.
+    Wichtig für Runway Selection und Performance-Berechnungen.
+    """)
+    
+    # ========================================================================
+    # INPUT SECTION
+    # ========================================================================
+    
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        st.subheader("📥 Eingabe")
+        
+        runway = st.number_input(
+            "Runway:",
+            min_value=1,
+            max_value=36,
+            value=27,
+            step=1,
+            help="Runway-Nummer (z.B. 27 für Runway 27)"
+        )
+        
+        runway_heading = runway * 10
+        
+        wind_dir = st.number_input(
+            "Wind Direction:",
+            min_value=0,
+            max_value=360,
+            value=240,
+            step=10,
+            help="Wind FROM Richtung in Grad (0-360°)"
+        )
+        
+        wind_speed = st.number_input(
+            "Wind Speed:",
+            min_value=0,
+            max_value=150,
+            value=15,
+            step=1,
+            help="Windgeschwindigkeit in Knoten"
+        )
+        
+        calculate_btn = st.button("🧮 Berechnen", key="wind_comp_calc", type="primary")
+    
+    # ========================================================================
+    # RESULTS SECTION
+    # ========================================================================
+    
+    with col2:
+        st.subheader("📊 Ergebnis")
+        
+        if calculate_btn:
+            result = calculate_wind_components(runway_heading, wind_dir, wind_speed)
+            
+            # Determine wind type
+            if result['headwind_component'] > 0:
+                wind_type = "Headwind"
+                wind_color = "green"
+            else:
+                wind_type = "Tailwind"
+                wind_color = "orange"
+            
+            # Crosswind warning
+            crosswind_warning = result['crosswind_component'] > 15
+            
+            # Main results
+            st.markdown('<div class="result-box">', unsafe_allow_html=True)
+            
+            col_a, col_b = st.columns(2)
+            
+            with col_a:
+                st.metric(
+                    wind_type,
+                    f"{abs(result['headwind_component']):.0f} kts",
+                    delta=None
+                )
+                
+                st.metric(
+                    "Angle Difference",
+                    f"{result['angle_difference']:.0f}°"
+                )
+            
+            with col_b:
+                crosswind_text = f"{result['crosswind_component']:.0f} kts ({result['crosswind_direction']})"
+                st.metric(
+                    "Crosswind",
+                    crosswind_text,
+                    delta=None
+                )
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            # Warnings
+            if result['headwind_component'] < 0:
+                st.warning(f"⚠️ **Tailwind:** {abs(result['headwind_component']):.0f} kts - Längere Landestrecke!")
+            
+            if crosswind_warning:
+                st.warning(f"⚠️ **Hoher Crosswind:** {result['crosswind_component']:.0f} kts - Prüfen Sie Flugzeug-Limits!")
+            elif result['crosswind_component'] > 0:
+                st.info(f"✓ Crosswind im akzeptablen Bereich")
+            
+            with st.expander("ℹ️ Erklärung"):
+                st.write(f"""
+                **Eingaben:**
+                
+                - Runway: {runway:02d} (Heading: {runway_heading}°)
+                - Wind: {wind_speed} kts aus {wind_dir}°
+                
+                **Ergebnisse:**
+                
+                - **{wind_type}:** {abs(result['headwind_component']):.0f} kts
+                - **Crosswind:** {result['crosswind_component']:.0f} kts von {result['crosswind_direction']}
+                - **Winkel-Differenz:** {result['angle_difference']:.0f}°
+                
+                **Interpretation:**
+                
+                - **Headwind (positiv):** Verbessert Performance, verkürzt Startstrecke
+                - **Tailwind (negativ):** Verschlechtert Performance, längere Landestrecke
+                - **Crosswind:** Erfordert Seitenwind-Korrektur, beachten Sie Flugzeug-Limits
+                
+                **Typische Crosswind-Limits:**
+                - Light GA (Cessna 172): ~15 kts
+                - High-Performance GA: ~20 kts
+                - Twins/Turboprops: ~25-30 kts
+                """)
 
 
 if __name__ == "__main__":

@@ -8,11 +8,20 @@ Diese Anwendung bietet verschiedene Berechnungstools für präzise Flugplanung u
 
 ### ✨ Features
 
+#### Navigation & Flight Planning
 - **📉 Top of Descent (TOD) Calculator** - Berechnet den idealen Punkt zum Einleiten des Sinkflugs
 - **📈 Top of Climb (TOC) Calculator** - Berechnet Steigflug-Parameter mit zwei Modi und Visualisierung
 - **🌬️ Wind Correction Angle** - Ermittelt Windkorrektur und Ground Speed
 - **🧭 Course Converter** - Konvertiert zwischen True und Magnetic Course (TVMDC)
 - **📊 Ground Speed Calculator** - Schnelle Geschwindigkeitsberechnung bei bekanntem Heading
+
+#### E6B Flight Computer
+- **✈️ True Airspeed (TAS) Calculator** - Berechnet TAS aus IAS, Höhe und Temperatur
+- **🌡️ Density Altitude Calculator** - Performance-kritische Berechnungen für Takeoff/Landing
+- **⛽ Fuel Planner** - Treibstoffbedarf, Reichweite und Endurance-Berechnungen
+- **🛬 Wind Components** - Gegen-/Rückenwind und Seitenwind für Runway Selection
+
+#### Utilities
 - **🔄 Unit Converter** - Konvertiert zwischen Höhe, Distanz, Gewicht und Treibstoff-Einheiten
 
 ### 🎯 Technologie
@@ -111,6 +120,42 @@ Konvertiert zwischen verschiedenen Einheiten:
 - **Treibstoff-Volumen:** Liters ↔ US Gallons ↔ Imperial Gallons
 - Inkl. Referenzwerte und typischen Beispielen für jede Kategorie
 
+### 🛩️ E6B Flight Computer
+
+#### True Airspeed (TAS) Calculator
+Berechnet True Airspeed aus Indicated Airspeed:
+- Eingabe: IAS, Pressure Altitude, optional OAT (Temperatur)
+- Ausgabe: TAS, Korrektur in %, ISA Deviation
+- **Methode 1:** 2% Regel (TAS = IAS + 2% pro 1000 ft)
+- **Methode 2:** Temperatur-basiert (präziser)
+- **Verwendung:** Basis für alle Navigationsberechnungen
+
+#### Density Altitude Calculator
+Berechnet Density Altitude für Performance-Berechnungen:
+- Eingabe: Field Elevation, OAT, QNH
+- Ausgabe: Density Altitude, Pressure Altitude, ISA Deviation, Performance Impact
+- **Wichtig:** Hohe Density Altitude = schlechtere Performance
+- **Auswirkungen:** Längere Startstrecke, geringere Steigleistung
+- Color-Coding: Grün (< 1000 ft diff) → Orange → Rot (kritisch)
+
+#### Fuel Planner
+Berechnet Treibstoffbedarf und Reichweite:
+- **Modus 1 - Fuel Required:** Berechnet benötigten Fuel für Strecke
+  - Eingabe: Distance, Ground Speed, Fuel Flow, Reserve
+  - Ausgabe: Flight Fuel, Reserve Fuel, Total Fuel, Flight Time
+- **Modus 2 - Endurance & Range:** Berechnet Reichweite mit vorhandenem Fuel
+  - Eingabe: Available Fuel, Fuel Flow, Ground Speed
+  - Ausgabe: Endurance, Range (mit und ohne Reserve)
+- **Reserves:** VFR Day (30 min), VFR Night (45 min), IFR (45 min)
+
+#### Wind Components Calculator
+Berechnet Wind-Komponenten für Runway Operations:
+- Eingabe: Runway, Wind Direction, Wind Speed
+- Ausgabe: Headwind/Tailwind, Crosswind (mit Richtung), Angle Difference
+- **Wichtig für:** Runway Selection, Performance Calculations
+- **Warnings:** Tailwind-Warnung, High Crosswind Alert
+- **Limits:** Typische GA Crosswind Limits angezeigt
+
 ## 🎨 UI-Architektur
 
 ### Allgemeine Screen-Struktur
@@ -206,9 +251,26 @@ flight_calculator/
 
 ## 🧪 Testing
 
+Das Projekt verfügt über umfassende Unit Tests (**66 Tests**):
+
+**Test Coverage:**
+- TOD/TOC Calculations (19 Tests)
+- Wind Correction & Ground Speed (6 Tests)  
+- Unit Conversions (24 Tests)
+- E6B Flight Computer (18 Tests)
+  - True Airspeed
+  - Density Altitude
+  - Fuel Planning
+  - Wind Components
+
 Unit Tests ausführen:
 ```bash
 pytest
+```
+
+Alle Tests ausführen mit Details:
+```bash
+pytest tests/test_calculations.py -v
 ```
 
 Mit Coverage-Report:
